@@ -27,6 +27,14 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Health check & root endpoint
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'INNEXAFIT Backend API is running', timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
 // Ensure uploads folder exists
 if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
   fs.mkdirSync(path.join(__dirname, 'uploads'));
