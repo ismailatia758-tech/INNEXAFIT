@@ -31,7 +31,6 @@ const registerSchema = z.object({
     .regex(strongPasswordRegex, 'Password must include uppercase, lowercase, number and special character'),
   gender: z.enum(['Male', 'Female'], { error: 'Please select your gender' }),
   role: z.enum(['COACH', 'CLIENT']),
-  birthDate: z.string().min(1, 'Date of birth is required'),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -112,7 +111,7 @@ export default function RegisterPage() {
         username: platformHandle,
         phone: data.phone,
         gender: data.gender,
-        birthDate: data.birthDate,
+        birthDate: '1995-01-01',
       };
 
       try {
@@ -130,7 +129,7 @@ export default function RegisterPage() {
           username: platformHandle,
           phone: data.phone,
           gender: data.gender,
-          birthDate: data.birthDate,
+          birthDate: '1995-01-01',
         };
         accessToken = 'mock-access-token';
         refreshToken = 'mock-refresh-token';
@@ -163,7 +162,7 @@ export default function RegisterPage() {
             username: platformHandle,
             phone: data.phone,
             gender: data.gender,
-            birthDate: data.birthDate,
+            birthDate: '1995-01-01',
             planType: isFree ? 'Free' : 'Pending',
             pricePaid: 0,
             status: isFree ? 'Active' : 'Pending',
@@ -309,28 +308,7 @@ export default function RegisterPage() {
             {errors.email && <p className="text-destructive text-xs mt-1">{errors.email.message}</p>}
           </div>
 
-          {/* Date of Birth */}
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-              {language === 'en' ? "Date of Birth *" : "تاريخ الميلاد *"}
-            </label>
-            <div className="relative">
-              <input
-                {...register('birthDate')}
-                type="text"
-                placeholder="yyyy-mm-dd"
-                onFocus={(e) => {
-                  e.currentTarget.type = 'date';
-                  try { e.currentTarget.showPicker(); } catch (err) {}
-                }}
-                onBlur={(e) => {
-                      e.currentTarget.type = 'text';
-                    }}
-                className={`w-full ${language === 'ar' ? 'pr-4 pl-4 text-right' : 'pl-4 pr-4'} py-3 rounded-xl bg-background border border-border text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all text-white cursor-pointer`}
-              />
-            </div>
-            {errors.birthDate && <p className="text-destructive text-xs mt-1">{errors.birthDate.message}</p>}
-          </div>
+
 
           {/* Gender */}
           <div>
