@@ -32,3 +32,13 @@ next-env.d.ts
 # OS files
 .DS_Store
 Thumbs.db
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Local uploads
+backend/uploads/
+backend_upload/
+

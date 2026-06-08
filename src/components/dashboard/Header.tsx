@@ -119,6 +119,16 @@ export default function Header({ onMenuToggle }: HeaderProps) {
 
       {/* Right Controls */}
       <div className="flex items-center space-x-4 ml-auto">
+        {/* Language Switcher */}
+        <button
+          onClick={toggleLanguage}
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 border border-border transition-all text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+          title={language === 'en' ? 'Switch to Arabic' : 'تغيير إلى الإنجليزية'}
+        >
+          <Globe size={14} />
+          <span>{language === 'en' ? 'العربية' : 'EN'}</span>
+        </button>
+
         {/* Status Indicator */}
         <div className="relative" ref={statusRef}>
           <button
