@@ -177,7 +177,7 @@ export default function SettingsPage() {
       const auditLogs = savedLogsStr ? JSON.parse(savedLogsStr) : [];
       const newLog = {
         id: 'log-' + Math.random().toString(36).substr(2, 9),
-        action: `Coach ${user?.name} switched licensing tier from ${coachSubscription.planType} to ${nextPlan} ($${nextPrice})`,
+        action: `Coach ${user?.name} switched licensing tier from ${coachSubscription.planType} to ${nextPlan} (EGP ${nextPrice})`,
         timestamp: new Date().toISOString(),
         type: 'success'
       };
@@ -410,7 +410,7 @@ export default function SettingsPage() {
                 <div className="mt-8 pt-4 border-t border-border/30 grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-[10px] text-muted-foreground block uppercase">Cost / Rate</span>
-                    <span className="text-sm font-bold text-white">${coachSubscription.pricePaid} USD</span>
+                    <span className="text-sm font-bold text-white">EGP {coachSubscription.pricePaid}</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-muted-foreground block uppercase">Renewal Date</span>
@@ -437,7 +437,7 @@ export default function SettingsPage() {
                     <div className="text-left">
                       <span className="block text-xs font-bold text-white">Extend {coachSubscription.planType} Subscription</span>
                       <span className="block text-[10px] text-muted-foreground mt-0.5">
-                        Add 1 {coachSubscription.planType === 'Monthly' ? 'month' : 'year'} for ${coachSubscription.planType === 'Monthly' ? prices.monthly : prices.yearly}
+                        Add 1 {coachSubscription.planType === 'Monthly' ? 'month' : 'year'} for EGP {coachSubscription.planType === 'Monthly' ? prices.monthly : prices.yearly}
                       </span>
                     </div>
                     <span className="text-xs font-bold text-primary group-hover:underline">Extend &rarr;</span>
@@ -453,7 +453,7 @@ export default function SettingsPage() {
                         Switch to {coachSubscription.planType === 'Monthly' ? 'Yearly' : 'Monthly'} License
                       </span>
                       <span className="block text-[10px] text-muted-foreground mt-0.5">
-                        Switch to {coachSubscription.planType === 'Monthly' ? 'Yearly' : 'Monthly'} plan billing for ${coachSubscription.planType === 'Monthly' ? prices.yearly : prices.monthly}
+                        Switch to {coachSubscription.planType === 'Monthly' ? 'Yearly' : 'Monthly'} plan billing for EGP {coachSubscription.planType === 'Monthly' ? prices.yearly : prices.monthly}
                       </span>
                     </div>
                     <span className="text-xs font-bold text-primary group-hover:underline">Switch &rarr;</span>

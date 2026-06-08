@@ -29,19 +29,13 @@ import {
 import Link from 'next/link';
 
 const stats = [
-  { label: 'Total Earnings', value: '$12,450', icon: DollarSign, color: 'text-green-500', trend: '+12%', isPositive: true },
-  { label: 'Active Subscribers', value: '42', icon: UserCheck, color: 'text-blue-500', trend: '+4%', isPositive: true },
-  { label: 'Inactive Subscribers', value: '8', icon: UserMinus, color: 'text-muted-foreground', trend: '-1', isPositive: false },
-  { label: 'Outstanding Payments', value: '$450', icon: AlertCircle, color: 'text-destructive', trend: '+15%', isPositive: false },
+  { label: 'Total Earnings', value: 'EGP 0.00', icon: DollarSign, color: 'text-green-500', trend: '0%', isPositive: true },
+  { label: 'Active Subscribers', value: '0', icon: UserCheck, color: 'text-blue-500', trend: '0%', isPositive: true },
+  { label: 'Inactive Subscribers', value: '0', icon: UserMinus, color: 'text-muted-foreground', trend: '0', isPositive: false },
+  { label: 'Outstanding Payments', value: 'EGP 0.00', icon: AlertCircle, color: 'text-destructive', trend: '0%', isPositive: false },
 ];
 
-const revenueData = [
-  { name: 'Jan', value: 1200 },
-  { name: 'Feb', value: 1500 },
-  { name: 'Mar', value: 1800 },
-  { name: 'Apr', value: 1400 },
-  { name: 'May', value: 12450 },
-];
+const revenueData: { name: string; value: number }[] = [];
 
 export default function CoachDashboardPage() {
   return (
@@ -104,46 +98,8 @@ export default function CoachDashboardPage() {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-5 rounded-2xl bg-background border border-border hover:border-primary/20 transition-all flex flex-col justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-destructive px-2 py-0.5 rounded-full bg-destructive/10">Weight Alert</span>
-              <p className="font-bold mt-2 text-sm">John Doe's weight dropped 3.2kg</p>
-              <p className="text-xs text-muted-foreground mt-1">This is a sharp decline. Consider checking nutrition logs or chatting.</p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
-              <Link href="/dashboard/coach/chat" className="text-xs text-primary font-bold hover:underline flex items-center gap-1">
-                <MessageSquare size={12} />
-                <span>Chat Now</span>
-              </Link>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-background border border-border hover:border-primary/20 transition-all flex flex-col justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-yellow-500 px-2 py-0.5 rounded-full bg-yellow-500/10">Pending Onboarding</span>
-              <p className="font-bold mt-2 text-sm">2 Trainees awaiting workouts</p>
-              <p className="text-xs text-muted-foreground mt-1">New trainees completed signup. Create and assign their starting programs.</p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
-              <Link href="/dashboard/coach/workouts/new" className="text-xs text-primary font-bold hover:underline flex items-center gap-1">
-                <Activity size={12} />
-                <span>Build Program</span>
-              </Link>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-background border border-border hover:border-primary/20 transition-all flex flex-col justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-blue-500 px-2 py-0.5 rounded-full bg-blue-500/10">Payment Pending</span>
-              <p className="font-bold mt-2 text-sm">Mike Ross subscription invoice</p>
-              <p className="text-xs text-muted-foreground mt-1">The monthly payment of $99.00 has been outstanding for 2 days.</p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
-              <Link href="/dashboard/coach/payments" className="text-xs text-primary font-bold hover:underline flex items-center gap-1">
-                <DollarSign size={12} />
-                <span>Review Invoice</span>
-              </Link>
-            </div>
+          <div className="col-span-full p-8 text-center rounded-2xl bg-background border border-border text-muted-foreground text-xs font-bold">
+            🎉 All caught up! No insights or alerts requiring attention.
           </div>
         </div>
       </motion.div>
@@ -203,24 +159,8 @@ export default function CoachDashboardPage() {
         {/* Recent Activity */}
         <div className="p-8 rounded-[2.5rem] bg-card border border-border flex flex-col">
           <h2 className="text-xl font-bold mb-8">Latest Activity</h2>
-          <div className="space-y-6 flex-1">
-            {[
-              { user: 'John Doe', action: 'Uploaded progress photo', time: '12m ago', icon: Activity, color: 'text-blue-500' },
-              { user: 'Sarah J.', action: 'Started new workout plan', time: '1h ago', icon: Activity, color: 'text-green-500' },
-              { user: 'Mike Ross', action: 'Subscription renewed', time: '3h ago', icon: DollarSign, color: 'text-yellow-500' },
-              { user: 'Emma W.', action: 'Commented on meal plan', time: '5h ago', icon: Users, color: 'text-purple-500' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-start space-x-4 group cursor-pointer">
-                <div className={`p-2 rounded-xl bg-background border border-border group-hover:border-primary/20 transition-all ${item.color}`}>
-                  <item.icon size={18} />
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-bold group-hover:text-primary transition-colors">{item.user}</p>
-                  <p className="text-xs text-muted-foreground truncate">{item.action}</p>
-                </div>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">{item.time}</span>
-              </div>
-            ))}
+          <div className="space-y-6 flex-1 flex items-center justify-center">
+            <p className="text-xs text-muted-foreground text-center py-12">No recent activity.</p>
           </div>
           <button className="mt-8 w-full py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-bold hover:bg-secondary/80 transition-all">
             View Full Audit Log

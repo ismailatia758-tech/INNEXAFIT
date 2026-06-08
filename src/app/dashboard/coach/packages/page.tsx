@@ -27,36 +27,7 @@ export interface SubscriptionPackage {
   trialDuration?: number;
 }
 
-const defaultPackages: SubscriptionPackage[] = [
-  {
-    id: 'pkg-1',
-    name: 'Premium Muscle Builder',
-    durationType: 'Monthly',
-    durationValue: 3,
-    price: 149,
-    maxDevices: 3,
-    isTrial: false
-  },
-  {
-    id: 'pkg-2',
-    name: 'Quick Fat Loss Trial',
-    durationType: 'Daily',
-    durationValue: 7,
-    price: 0,
-    maxDevices: 1,
-    isTrial: true,
-    trialDuration: 7
-  },
-  {
-    id: 'pkg-3',
-    name: 'Elite Strength Coaching',
-    durationType: 'Monthly',
-    durationValue: 6,
-    price: 299,
-    maxDevices: 5,
-    isTrial: false
-  }
-];
+const defaultPackages: SubscriptionPackage[] = [];
 
 export default function PackageBuilderPage() {
   const [packages, setPackages] = useState<SubscriptionPackage[]>([]);
@@ -287,16 +258,16 @@ export default function PackageBuilderPage() {
                 initial={{ opacity: 1 }}
                 className="relative"
               >
-                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Price (USD)</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Price (EGP)</label>
                 <div className="relative">
-                  <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">EGP</span>
                   <input
                     type="number"
                     min="0"
                     placeholder="99"
                     value={price}
                     onChange={(e) => setPrice(Number(e.target.value))}
-                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-background border border-border text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    className="w-full pl-14 pr-4 py-3 rounded-xl bg-background border border-border text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     required
                   />
                 </div>
@@ -376,7 +347,7 @@ export default function PackageBuilderPage() {
                     <div>
                       <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Price</p>
                       <p className="text-2xl font-black text-foreground mt-0.5">
-                        {pkg.price === 0 ? 'FREE' : `$${pkg.price}`}
+                        {pkg.price === 0 ? 'FREE' : `EGP ${pkg.price}`}
                       </p>
                     </div>
 

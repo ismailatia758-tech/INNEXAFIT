@@ -161,7 +161,7 @@ export default function Pricing() {
                 <div className="mb-8">
                   <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
                   <div className="flex items-baseline space-x-1">
-                    <span className="text-4xl font-extrabold">${plan.price}</span>
+                    <span className="text-4xl font-extrabold">EGP {plan.price}</span>
                     <span className="text-muted-foreground text-sm">/{plan.period}</span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-4">{plan.description}</p>

@@ -31,20 +31,7 @@ interface ProgressPhoto {
   imageUrl: string;
 }
 
-const defaultPhotos: ProgressPhoto[] = [
-  { id: 'p1', traineeId: '1', week: 'Week 1', date: '2026-05-01', imageUrl: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=600' },
-  { id: 'p2', traineeId: '1', week: 'Week 3', date: '2026-05-15', imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600' },
-  { id: 'p3', traineeId: '1', week: 'Week 5', date: '2026-05-29', imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=600' },
-  
-  { id: 'p4', traineeId: '2', week: 'Week 1', date: '2026-05-01', imageUrl: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=600' },
-  { id: 'p5', traineeId: '2', week: 'Week 5', date: '2026-05-29', imageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600' },
-
-  { id: 'p6', traineeId: '3', week: 'Week 1', date: '2026-05-01', imageUrl: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?q=80&w=600' },
-  { id: 'p7', traineeId: '3', week: 'Week 5', date: '2026-05-29', imageUrl: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?q=80&w=600' },
-
-  { id: 'p8', traineeId: '4', week: 'Week 1', date: '2026-05-01', imageUrl: 'https://images.unsplash.com/photo-1594824813573-246434e33963?q=80&w=600' },
-  { id: 'p9', traineeId: '4', week: 'Week 5', date: '2026-05-29', imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600' }
-];
+const defaultPhotos: ProgressPhoto[] = [];
 import { 
   AreaChart, 
   Area, 
@@ -773,6 +760,7 @@ export default function ProgressReportsPage() {
                         <label className="text-[10px] font-bold text-muted-foreground uppercase">Photo Date</label>
                         <input
                           type="date"
+                          lang="en-US"
                           value={uploadDate}
                           onChange={(e) => setUploadDate(e.target.value)}
                           className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-primary/20"

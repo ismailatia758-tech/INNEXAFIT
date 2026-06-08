@@ -121,17 +121,17 @@ export default function CheckoutPage() {
               <div className="space-y-4 mb-8">
                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Professional Plan</span>
-                    <span className="font-bold">${basePrice}.00</span>
+                    <span className="font-bold">EGP {basePrice}.00</span>
                  </div>
                  {discountApplied && (
                     <div className="flex justify-between text-sm text-green-500">
                        <span>Discount (20%)</span>
-                       <span>-${(basePrice * 0.2).toFixed(2)}</span>
+                       <span>-EGP {(basePrice * 0.2).toFixed(2)}</span>
                     </div>
                  )}
                  <div className="pt-4 border-t border-border flex justify-between">
                     <span className="font-bold">Total Amount</span>
-                    <span className="text-2xl font-black">${finalPrice.toFixed(2)}</span>
+                    <span className="text-2xl font-black">EGP {finalPrice.toFixed(2)}</span>
                  </div>
               </div>
 

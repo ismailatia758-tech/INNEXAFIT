@@ -35,66 +35,14 @@ import {
 } from 'recharts';
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
 
-const earningsData = [
-  { month: 'Jan', revenue: 4800, expenses: 800 },
-  { month: 'Feb', revenue: 5900, expenses: 850 },
-  { month: 'Mar', revenue: 7200, expenses: 900 },
-  { month: 'Apr', revenue: 6800, expenses: 950 },
-  { month: 'May', revenue: 10400, expenses: 1100 },
-  { month: 'Jun', revenue: 12450, expenses: 1200 },
-];
-
-const profitsReport = [
-  { id: 'TXN-101', trainee: 'John Doe', amount: 49.00, date: '2026-06-05', method: 'Stripe' },
-  { id: 'TXN-102', trainee: 'Sarah Jenkins', amount: 29.00, date: '2026-06-03', method: 'PayPal' },
-  { id: 'TXN-104', trainee: 'Emma Wilson', amount: 49.00, date: '2026-05-28', method: 'Bank Transfer' },
-  { id: 'TXN-105', trainee: 'Harvey Specter', amount: 150.00, date: '2026-05-25', method: 'Stripe' },
-  { id: 'TXN-106', trainee: 'Jessica Pearson', amount: 150.00, date: '2026-05-22', method: 'Stripe' },
-  { id: 'TXN-107', trainee: 'Louis Litt', amount: 99.00, date: '2026-05-18', method: 'PayPal' },
-];
-
-const receivablesReport = [
-  { id: 'INV-003', trainee: 'Mike Ross', amount: 99.00, date: '2026-06-02', status: 'Overdue' },
-  { id: 'INV-008', trainee: 'Rachel Zane', amount: 49.00, date: '2026-06-10', status: 'Unpaid' },
-  { id: 'INV-009', trainee: 'Donna Paulsen', amount: 150.00, date: '2026-06-15', status: 'Unpaid' },
-  { id: 'INV-010', trainee: 'Daniel Hardman', amount: 299.00, date: '2026-06-20', status: 'Unpaid' },
-];
-
-const activeClientsReport = [
-  { name: 'John Doe', email: 'john@example.com', plan: 'Premium Muscle Builder', startDate: '2026-05-01', status: 'Active' },
-  { name: 'Sarah Jenkins', email: 'sarah@example.com', plan: 'Quick Fat Loss Trial', startDate: '2026-05-01', status: 'Active' },
-  { name: 'Mike Ross', email: 'mike@example.com', plan: 'Strength Build Pro', startDate: '2026-05-01', status: 'Active' },
-  { name: 'Emma Wilson', email: 'emma@example.com', plan: 'Quick Fat Loss Trial', startDate: '2026-05-01', status: 'Active' },
-  { name: 'Harvey Specter', email: 'harvey@example.com', plan: 'CEO Elite Fit Plan', startDate: '2026-05-25', status: 'Active' },
-];
-
-const inactiveClientsReport = [
-  { name: 'Peter Parker', email: 'peter@example.com', lastPlan: 'Basic Conditioning', endDate: '2026-04-15', reason: 'Subscription Expired' },
-  { name: 'Clark Kent', email: 'clark@example.com', lastPlan: 'Man of Steel Protocol', endDate: '2026-03-30', reason: 'Suspended' },
-  { name: 'Bruce Wayne', email: 'bruce@example.com', lastPlan: 'Dark Knight Bulk', endDate: '2026-05-10', reason: 'Cancelled by Client' },
-];
-
-const refundsReport = [
-  { id: 'REF-201', trainee: 'Tony Stark', amount: 150.00, date: '2026-05-30', reason: 'Injury / Double Charge' },
-  { id: 'REF-202', trainee: 'Steve Rogers', amount: 49.00, date: '2026-05-12', reason: 'Package Downgrade' },
-  { id: 'REF-203', trainee: 'Natasha Romanoff', amount: 29.00, date: '2026-04-25', reason: 'Dissatisfied with Meal Options' },
-];
-
-const nutritionPlansReport = [
-  { id: 'NUT-801', trainee: 'John Doe', calories: '2,400 kcal', macros: '180g P / 220g C / 65g F', date: '2026-05-01' },
-  { id: 'NUT-802', trainee: 'Sarah Jenkins', calories: '1,600 kcal', macros: '130g P / 150g C / 45g F', date: '2026-05-01' },
-  { id: 'NUT-803', trainee: 'Mike Ross', calories: '2,800 kcal', macros: '190g P / 300g C / 80g F', date: '2026-05-01' },
-  { id: 'NUT-804', trainee: 'Emma Wilson', calories: '1,500 kcal', macros: '120g P / 130g C / 50g F', date: '2026-05-01' },
-  { id: 'NUT-805', trainee: 'Harvey Specter', calories: '2,200 kcal', macros: '175g P / 200g C / 60g F', date: '2026-05-25' },
-];
-
-const trainingProgramsReport = [
-  { id: 'WRK-901', trainee: 'John Doe', split: 'Push/Pull/Legs', frequency: '5 Days / Week', date: '2026-05-01' },
-  { id: 'WRK-902', trainee: 'Sarah Jenkins', split: 'Full Body Recomp', frequency: '3 Days / Week', date: '2026-05-01' },
-  { id: 'WRK-903', trainee: 'Mike Ross', split: 'Heavy Powerlifting', frequency: '4 Days / Week', date: '2026-05-01' },
-  { id: 'WRK-904', trainee: 'Emma Wilson', split: 'Cardio & Core Slim', frequency: '4 Days / Week', date: '2026-05-01' },
-  { id: 'WRK-905', trainee: 'Harvey Specter', split: 'Executive Conditioning', frequency: '3 Days / Week', date: '2026-05-25' },
-];
+const earningsData: { month: string; revenue: number; expenses: number }[] = [];
+const profitsReport: { id: string; trainee: string; amount: number; date: string; method: string }[] = [];
+const receivablesReport: { id: string; trainee: string; amount: number; date: string; status: string }[] = [];
+const activeClientsReport: { name: string; email: string; plan: string; startDate: string; status: string }[] = [];
+const inactiveClientsReport: { name: string; email: string; lastPlan: string; endDate: string; reason: string }[] = [];
+const refundsReport: { id: string; trainee: string; amount: number; date: string; reason: string }[] = [];
+const nutritionPlansReport: { id: string; trainee: string; calories: string; macros: string; date: string }[] = [];
+const trainingProgramsReport: { id: string; trainee: string; split: string; frequency: string; date: string }[] = [];
 
 const reportOptions = [
   { type: 'profits', label: 'Total Profits', desc: 'Earnings & net revenues', icon: DollarSign, color: 'text-green-500 bg-green-500/10' },
@@ -105,6 +53,14 @@ const reportOptions = [
   { type: 'nutrition_plans', label: 'Nutrition Plans', desc: 'Designed client diet sheets', icon: Utensils, color: 'text-orange-500 bg-orange-500/10' },
   { type: 'training_programs', label: 'Training Programs', desc: 'Designed workout sheets', icon: Dumbbell, color: 'text-purple-500 bg-purple-500/10' }
 ] as const;
+
+const formatToEnglishDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year}`;
+};
 
 export default function FinancialReportsPage() {
   const [reportType, setReportType] = useState<'profits' | 'receivables' | 'active_clients' | 'inactive_clients' | 'refunds' | 'nutrition_plans' | 'training_programs'>('profits');
@@ -157,7 +113,7 @@ export default function FinancialReportsPage() {
           countLabel: 'Total Transactions',
           countVal: String(filteredProfits.length),
           metricLabel: 'Gross Earnings',
-          metricVal: `$${totalProfits.toFixed(2)}`,
+          metricVal: `EGP ${totalProfits.toFixed(2)}`,
           metricColor: 'text-green-400'
         };
       case 'receivables':
@@ -168,7 +124,7 @@ export default function FinancialReportsPage() {
           countLabel: 'Pending Invoices',
           countVal: String(filteredReceivables.length),
           metricLabel: 'Total Receivables',
-          metricVal: `$${totalReceivables.toFixed(2)}`,
+          metricVal: `EGP ${totalReceivables.toFixed(2)}`,
           metricColor: 'text-yellow-400'
         };
       case 'active_clients':
@@ -178,7 +134,7 @@ export default function FinancialReportsPage() {
           countLabel: 'Active Trainees',
           countVal: String(filteredActiveClients.length),
           metricLabel: 'Monthly Run Rate',
-          metricVal: `$${(filteredActiveClients.length * 49).toFixed(2)}`,
+          metricVal: `EGP ${(filteredActiveClients.length * 49).toFixed(2)}`,
           metricColor: 'text-blue-400'
         };
       case 'inactive_clients':
@@ -202,7 +158,7 @@ export default function FinancialReportsPage() {
           countLabel: 'Refunded Items',
           countVal: String(filteredRefunds.length),
           metricLabel: 'Total Refunded',
-          metricVal: `$${totalRefunds.toFixed(2)}`,
+          metricVal: `EGP ${totalRefunds.toFixed(2)}`,
           metricColor: 'text-rose-400'
         };
       case 'nutrition_plans':
@@ -236,7 +192,7 @@ export default function FinancialReportsPage() {
           rows: filteredProfits.map(item => [
             item.id,
             item.trainee,
-            `$${item.amount.toFixed(2)}`,
+            `EGP ${item.amount.toFixed(2)}`,
             item.date,
             item.method
           ])
@@ -247,7 +203,7 @@ export default function FinancialReportsPage() {
           rows: filteredReceivables.map(item => [
             item.id,
             item.trainee,
-            `$${item.amount.toFixed(2)}`,
+            `EGP ${item.amount.toFixed(2)}`,
             item.date,
             item.status
           ])
@@ -280,7 +236,7 @@ export default function FinancialReportsPage() {
           rows: filteredRefunds.map(item => [
             item.id,
             item.trainee,
-            `$${item.amount.toFixed(2)}`,
+            `EGP ${item.amount.toFixed(2)}`,
             item.date,
             item.reason
           ])
@@ -328,15 +284,15 @@ export default function FinancialReportsPage() {
     const headers = ['Month', 'Revenue', 'Expenses', 'Net Profit'];
     const rows = earningsData.map(d => [
       d.month,
-      `$${d.revenue}`,
-      `$${d.expenses}`,
-      `$${d.revenue - d.expenses}`
+      `EGP ${d.revenue}`,
+      `EGP ${d.expenses}`,
+      `EGP ${d.revenue - d.expenses}`
     ]);
     exportToPDF('Consolidated Financial Statement', headers, rows, [
-      { label: 'Net Profit (YTD)', value: '$37,550.00' },
-      { label: 'Avg. Monthly Revenue', value: '$7,925.00' },
-      { label: 'Total Revenue (6 Months)', value: `$${earningsData.reduce((s, d) => s + d.revenue, 0)}` },
-      { label: 'Total Expenses (6 Months)', value: `$${earningsData.reduce((s, d) => s + d.expenses, 0)}` }
+      { label: 'Net Profit (YTD)', value: 'EGP 37,550.00' },
+      { label: 'Avg. Monthly Revenue', value: 'EGP 7,925.00' },
+      { label: 'Total Revenue (6 Months)', value: `EGP ${earningsData.reduce((s, d) => s + d.revenue, 0)}` },
+      { label: 'Total Expenses (6 Months)', value: `EGP ${earningsData.reduce((s, d) => s + d.expenses, 0)}` }
     ]);
   };
 
@@ -369,13 +325,13 @@ export default function FinancialReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="p-8 rounded-3xl bg-card border border-border">
           <p className="text-xs text-muted-foreground font-bold uppercase">Net Profit (YTD)</p>
-          <p className="text-3xl font-black mt-2 text-green-500">$37,550.00</p>
+          <p className="text-3xl font-black mt-2 text-green-500">EGP 37,550.00</p>
           <span className="text-[10px] text-muted-foreground font-bold block mt-1">After platform fees & taxes</span>
         </div>
 
         <div className="p-8 rounded-3xl bg-card border border-border">
           <p className="text-xs text-muted-foreground font-bold uppercase">Avg. Monthly Revenue</p>
-          <p className="text-3xl font-black mt-2">$7,925.00</p>
+          <p className="text-3xl font-black mt-2">EGP 7,925.00</p>
           <span className="text-[10px] text-green-500 font-bold flex items-center mt-1">
             <ArrowUpRight size={12} className="mr-0.5" />
             +8.3% MoM Growth
@@ -384,7 +340,7 @@ export default function FinancialReportsPage() {
 
         <div className="p-8 rounded-3xl bg-card border border-border">
           <p className="text-xs text-muted-foreground font-bold uppercase">Subscriber Lifetime Value (LTV)</p>
-          <p className="text-3xl font-black mt-2 text-primary">$345.00</p>
+          <p className="text-3xl font-black mt-2 text-primary">EGP 345.00</p>
           <span className="text-[10px] text-muted-foreground font-bold block mt-1">Average subscription duration: 7 months</span>
         </div>
       </div>
@@ -474,7 +430,7 @@ export default function FinancialReportsPage() {
               <div>
                 <div className="flex justify-between text-xs font-bold mb-2">
                   <span>Avg. Subscription Price / mo</span>
-                  <span className="text-primary">${avgTicketPrice}</span>
+                  <span className="text-primary">EGP {avgTicketPrice}</span>
                 </div>
                 <input 
                   type="range" min="10" max="200" value={avgTicketPrice}
@@ -500,19 +456,19 @@ export default function FinancialReportsPage() {
             <div className="mt-8 space-y-4 pt-6 border-t border-border">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Base Monthly Revenue (MRR)</span>
-                <span className="font-bold">${currentMRR.toLocaleString()}</span>
+                <span className="font-bold">EGP {currentMRR.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">3-Month Projected MRR</span>
-                <span className="font-bold text-primary">${m3Projected.toLocaleString()}</span>
+                <span className="font-bold text-primary">EGP {m3Projected.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">6-Month Projected MRR</span>
-                <span className="font-bold text-primary">${m6Projected.toLocaleString()}</span>
+                <span className="font-bold text-primary">EGP {m6Projected.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm pt-4 border-t border-border/50">
                 <span className="font-bold">Projected Annual Profit</span>
-                <span className="font-black text-green-500 text-lg">${annualForecasted.toLocaleString()}</span>
+                <span className="font-black text-green-500 text-lg">EGP {annualForecasted.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -555,21 +511,31 @@ export default function FinancialReportsPage() {
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground">From:</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-background border border-border rounded-xl px-2.5 py-1.5 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
-                />
+                <div className="relative">
+                  <div className="bg-background border border-border rounded-xl px-2.5 py-1.5 text-xs font-bold text-white min-w-[110px] text-center select-none pointer-events-none">
+                    {formatToEnglishDate(startDate)}
+                  </div>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground">To:</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-background border border-border rounded-xl px-2.5 py-1.5 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
-                />
+                <div className="relative">
+                  <div className="bg-background border border-border rounded-xl px-2.5 py-1.5 text-xs font-bold text-white min-w-[110px] text-center select-none pointer-events-none">
+                    {formatToEnglishDate(endDate)}
+                  </div>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                </div>
               </div>
               <button
                 type="button"

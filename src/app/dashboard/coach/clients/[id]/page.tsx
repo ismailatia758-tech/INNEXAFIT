@@ -1146,7 +1146,7 @@ export default function ClientProfilePage() {
                               status: client?.status || 'Active',
                               startDate: client?.startDate || '2026-05-01',
                               expiryDate: client?.expiryDate || '2026-08-01',
-                              price: '150 USD',
+                              price: '150 EGP',
                               duration: '3 Months',
                               devicesLimit: '3 Devices'
                             },
@@ -1156,7 +1156,7 @@ export default function ClientProfilePage() {
                               status: 'Expired',
                               startDate: '2026-04-01',
                               expiryDate: '2026-05-01',
-                              price: '50 USD',
+                              price: '50 EGP',
                               duration: '1 Month',
                               devicesLimit: '1 Device'
                             }

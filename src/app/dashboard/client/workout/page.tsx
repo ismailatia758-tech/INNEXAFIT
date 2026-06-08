@@ -51,44 +51,7 @@ interface WorkoutSession {
   exercises: Exercise[];
 }
 
-const initialWorkouts: WorkoutSession[] = [
-  {
-    id: 'default-1',
-    dayName: 'Day 1',
-    sessionTitle: 'Pull Day (Back & Biceps)',
-    dateAssigned: new Date().toISOString().split('T')[0],
-    isCompleted: false,
-    clientFeedbackNotes: '',
-    exercises: [
-      {
-        id: 'ex-1',
-        name: 'Lat Pulldowns (Wide Grip)',
-        category: 'Back',
-        mediaType: 'library',
-        notes: 'Keep shoulders down and pull with elbows.',
-        sets: [
-          { setNumber: 1, targetReps: 10, targetWeight: 60, targetRest: 90, isCompleted: false },
-          { setNumber: 2, targetReps: 10, targetWeight: 60, targetRest: 90, isCompleted: false },
-          { setNumber: 3, targetReps: 8, targetWeight: 65, targetRest: 90, isCompleted: false },
-          { setNumber: 4, targetReps: 8, targetWeight: 65, targetRest: 90, isCompleted: false }
-        ]
-      },
-      {
-        id: 'ex-2',
-        name: 'Seated Cable Rows',
-        category: 'Back',
-        mediaType: 'embed',
-        embedUrl: 'https://youtube.com',
-        notes: 'Squeeze shoulder blades for 1 sec.',
-        sets: [
-          { setNumber: 1, targetReps: 12, targetWeight: 50, targetRest: 90, isCompleted: false },
-          { setNumber: 2, targetReps: 10, targetWeight: 55, targetRest: 90, isCompleted: false },
-          { setNumber: 3, targetReps: 10, targetWeight: 55, targetRest: 90, isCompleted: false }
-        ]
-      }
-    ]
-  }
-];
+const initialWorkouts: WorkoutSession[] = [];
 
 export default function WorkoutLoggerPage() {
   const { user } = useAuth();

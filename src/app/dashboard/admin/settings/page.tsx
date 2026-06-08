@@ -556,7 +556,7 @@ export default function AdminSettingsPage() {
                         </div>
 
                         <div className="flex items-baseline gap-1 my-3">
-                          <span className="text-3xl font-extrabold text-white">${plan.price}</span>
+                          <span className="text-3xl font-extrabold text-white">EGP {plan.price}</span>
                           <span className="text-xs text-muted-foreground">/{plan.period}</span>
                         </div>
 
@@ -625,7 +625,7 @@ export default function AdminSettingsPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Price ($) *</label>
+                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Price (EGP) *</label>
                         <input
                           type="number"
                           value={planPrice}

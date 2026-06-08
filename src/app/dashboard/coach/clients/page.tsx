@@ -46,68 +46,7 @@ interface Client {
   age?: number;
 }
 
-const defaultMockClients: Client[] = [
-  {
-    id: 'cli-1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    packageName: 'Premium Muscle Builder',
-    status: 'Active',
-    maxDevices: 3,
-    activeDevices: 2,
-    startDate: '2026-05-01',
-    expiryDate: '2026-08-01',
-    username: 'johndoe',
-    phone: '+20 123 456 789',
-    gender: 'Male',
-    age: 28
-  },
-  {
-    id: 'cli-2',
-    name: 'Sarah Jenkins',
-    email: 'sarah@example.com',
-    packageName: 'Quick Fat Loss Trial',
-    status: 'Active',
-    maxDevices: 1,
-    activeDevices: 1,
-    startDate: '2026-06-05',
-    expiryDate: '2026-06-12',
-    username: 'sarahj',
-    phone: '+20 100 200 300',
-    gender: 'Female',
-    age: 24
-  },
-  {
-    id: 'cli-3',
-    name: 'Mike Ross',
-    email: 'mike@example.com',
-    packageName: 'Elite Strength Coaching',
-    status: 'Paused',
-    maxDevices: 5,
-    activeDevices: 0,
-    startDate: '2026-04-10',
-    expiryDate: '2026-10-10',
-    username: 'mikeross',
-    phone: '+20 111 222 333',
-    gender: 'Male',
-    age: 30
-  },
-  {
-    id: 'cli-4',
-    name: 'Emma Wilson',
-    email: 'emma@example.com',
-    packageName: 'Premium Muscle Builder',
-    status: 'Active',
-    maxDevices: 3,
-    activeDevices: 0,
-    startDate: '2026-02-15',
-    expiryDate: '2026-05-15',
-    username: 'emmaw',
-    phone: '+20 155 666 777',
-    gender: 'Female',
-    age: 26
-  }
-];
+const defaultMockClients: Client[] = [];
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);

@@ -70,30 +70,11 @@ export default function ClientDashboardPage() {
       };
       
       const savedAtts = localStorage.getItem('clientAttachments');
-      let attList = [];
+      let attList: any[] = [];
       if (savedAtts) {
         attList = JSON.parse(savedAtts);
       } else {
-        attList = [
-          {
-            id: 'att-1',
-            clientId: matched.id,
-            name: 'Frontal Progress.jpg',
-            size: '2.4 MB',
-            date: 'May 28',
-            url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=600&auto=format&fit=crop',
-            fileType: 'image'
-          },
-          {
-            id: 'att-2',
-            clientId: matched.id,
-            name: 'Blood Analysis.pdf',
-            size: '1.1 MB',
-            date: 'May 15',
-            url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-            fileType: 'pdf'
-          }
-        ];
+        attList = [];
         localStorage.setItem('clientAttachments', JSON.stringify(attList));
       }
       setAttachments(attList.filter((att: any) => att.clientId === matched.id));
@@ -117,11 +98,7 @@ export default function ClientDashboardPage() {
     setWeight(val);
     const todayStr = new Date().toISOString().split('T')[0];
     const savedWeight = localStorage.getItem('clientWeightLogs');
-    const logs = savedWeight ? JSON.parse(savedWeight) : [
-      { date: '2026-06-01', value: 79.2 },
-      { date: '2026-06-03', value: 78.9 },
-      { date: '2026-06-05', value: 78.7 },
-    ];
+    const logs = savedWeight ? JSON.parse(savedWeight) : [];
     logs.push({ date: todayStr, value: val });
     localStorage.setItem('clientWeightLogs', JSON.stringify(logs));
     setWeightInput('');
@@ -411,7 +388,7 @@ export default function ClientDashboardPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Price Rate:</span>
-                    <span className="font-bold text-foreground">${activeSubscription.price}/{activeSubscription.durationValue} {activeSubscription.durationType === 'Monthly' ? 'Mo' : activeSubscription.durationType === 'Weekly' ? 'Wk' : 'Day'}</span>
+                    <span className="font-bold text-foreground">EGP {activeSubscription.price}/{activeSubscription.durationValue} {activeSubscription.durationType === 'Monthly' ? 'Mo' : activeSubscription.durationType === 'Weekly' ? 'Wk' : 'Day'}</span>
                   </div>
                   <div className="flex justify-between border-t border-border/40 pt-2">
                     <span className="text-muted-foreground">Next Billing:</span>

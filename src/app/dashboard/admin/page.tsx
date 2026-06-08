@@ -71,77 +71,11 @@ interface PlatformClient {
   status: 'Active' | 'Paused' | 'Expired';
 }
 
-const defaultCoaches: CoachSubscription[] = [
-  { 
-    id: 'c-1', 
-    name: 'Coach Sarah Miller', 
-    email: 'sarah@coach.pro', 
-    planType: 'Monthly', 
-    pricePaid: 49, 
-    status: 'Active', 
-    startDate: '2026-05-10', 
-    expiryDate: '2026-06-10' 
-  },
-  { 
-    id: 'c-2', 
-    name: 'Coach Mark Reed', 
-    email: 'mark@innexa-fit.com', 
-    planType: 'Yearly', 
-    pricePaid: 399, 
-    status: 'Active', 
-    startDate: '2026-01-15', 
-    expiryDate: '2027-01-15' 
-  },
-  { 
-    id: 'c-3', 
-    name: 'Coach David Owens', 
-    email: 'david@fitcoaching.net', 
-    planType: 'Monthly', 
-    pricePaid: 49, 
-    status: 'Expired', 
-    startDate: '2026-04-01', 
-    expiryDate: '2026-05-01' 
-  },
-  { 
-    id: 'c-4', 
-    name: 'Coach James Sterling', 
-    email: 'james@sterlingathletics.com', 
-    planType: 'Monthly', 
-    pricePaid: 49, 
-    status: 'Active', 
-    startDate: '2026-05-25', 
-    expiryDate: '2026-06-25' 
-  }
-];
+const defaultCoaches: CoachSubscription[] = [];
 
-const defaultCoachesClients: Record<string, PlatformClient[]> = {
-  'c-1': [
-    { id: 'pc-1', name: 'Emma Watson', phone: '+20 101 234 5678', email: 'emma@watson.com', packageName: 'Fat Loss Elite', pricePaid: 150, joinedType: 'New', status: 'Active' },
-    { id: 'pc-2', name: 'James Vance', phone: '+20 112 456 7890', email: 'james@vance.com', packageName: 'Muscle Build Pro', pricePaid: 120, joinedType: 'Old', status: 'Active' },
-    { id: 'pc-3', name: 'Sophia Loren', phone: '+20 122 789 0123', email: 'sophia@loren.com', packageName: 'Fitness Trial', pricePaid: 50, joinedType: 'Old', status: 'Expired' }
-  ],
-  'c-2': [
-    { id: 'pc-4', name: 'Oliver Twist', phone: '+20 109 876 5432', email: 'oliver@twist.com', packageName: 'Strength Training', pricePaid: 200, joinedType: 'New', status: 'Active' },
-    { id: 'pc-5', name: 'Harry Potter', phone: '+20 105 111 2222', email: 'harry@hogwarts.com', packageName: 'Magical Cardio', pricePaid: 250, joinedType: 'Old', status: 'Active' },
-    { id: 'pc-6', name: 'Hermione Granger', phone: '+20 106 333 4444', email: 'hermione@hogwarts.com', packageName: 'Magical Cardio', pricePaid: 250, joinedType: 'New', status: 'Active' }
-  ],
-  'c-3': [
-    { id: 'pc-7', name: 'Ron Weasley', phone: '+20 107 555 6666', email: 'ron@hogwarts.com', packageName: 'Basic Fitness', pricePaid: 80, joinedType: 'Old', status: 'Expired' }
-  ],
-  'c-4': [
-    { id: 'pc-8', name: 'Clark Kent', phone: '+20 108 777 8888', email: 'clark@dailyplanet.com', packageName: 'Man of Steel Workout', pricePaid: 300, joinedType: 'Old', status: 'Active' },
-    { id: 'pc-9', name: 'Bruce Wayne', phone: '+20 109 999 0000', email: 'bruce@waynecorp.com', packageName: 'Dark Knight Conditioning', pricePaid: 400, joinedType: 'New', status: 'Active' }
-  ]
-};
+const defaultCoachesClients: Record<string, PlatformClient[]> = {};
 
-const revenueGrowthData = [
-  { name: 'Jan', value: 12000 },
-  { name: 'Feb', value: 15000 },
-  { name: 'Mar', value: 18000 },
-  { name: 'Apr', value: 24000 },
-  { name: 'May', value: 32000 },
-  { name: 'Jun', value: 42500 },
-];
+const revenueGrowthData: { name: string; value: number }[] = [];
 
 export default function AdminDashboardPage() {
   const [coaches, setCoaches] = useState<CoachSubscription[]>([]);
@@ -181,7 +115,7 @@ export default function AdminDashboardPage() {
       c.name,
       c.email,
       c.planType,
-      `$${c.pricePaid}`,
+      `EGP ${c.pricePaid}`,
       c.expiryDate,
       c.status,
       `${(coachesClients[c.id] || []).length} Trainees`
@@ -196,7 +130,7 @@ export default function AdminDashboardPage() {
       c.name,
       c.email,
       c.planType === 'Monthly' ? 'شهري' : 'سنوي',
-      `$${c.pricePaid}`,
+      `${c.pricePaid} ج.م`,
       c.expiryDate,
       c.status === 'Active' ? 'نشط' : 'منتهي',
       `${(coachesClients[c.id] || []).length} متدرب`
@@ -204,7 +138,7 @@ export default function AdminDashboardPage() {
     exportToPDF('دليل اشتراكات الكباتن - Coaches Subscriptions Directory', headers, rows, [
       { label: 'إجمالي الكباتن', value: String(coaches.length) },
       { label: 'الاشتراكات النشطة', value: String(coaches.filter(c => c.status === 'Active').length) },
-      { label: 'إجمالي الدخل الشهري المتوقع', value: `$${coaches.reduce((sum, c) => sum + (c.status === 'Active' ? c.pricePaid : 0), 0)}` }
+      { label: 'إجمالي الدخل الشهري المتوقع', value: `${coaches.reduce((sum, c) => sum + (c.status === 'Active' ? c.pricePaid : 0), 0)} ج.م` }
     ]);
   };
 
@@ -246,7 +180,7 @@ export default function AdminDashboardPage() {
         c.email,
         coachName,
         c.packageName,
-        `$${c.pricePaid}`,
+        `EGP ${c.pricePaid}`,
         c.joinedType === 'New' ? 'New (June 2026)' : 'Old',
         c.status
       ];
@@ -271,7 +205,7 @@ export default function AdminDashboardPage() {
         c.email,
         coachName,
         c.packageName,
-        `$${c.pricePaid}`,
+        `${c.pricePaid} ج.م`,
         c.joinedType === 'New' ? 'جديد (هذا الشهر)' : 'قديم',
         c.status === 'Active' ? 'نشط' : c.status === 'Paused' ? 'موقوف مؤقتاً' : 'منتهي'
       ];
@@ -279,7 +213,7 @@ export default function AdminDashboardPage() {
     exportToPDF('السجل العام للمتدربين - Platform Client Registry', headers, rows, [
       { label: 'إجمالي المتدربين المصفين', value: String(data.length) },
       { label: 'متدربين نشطين', value: String(data.filter(c => c.status === 'Active').length) },
-      { label: 'مجموع الدخل المستحق للكباتن', value: `$${data.reduce((sum, c) => sum + c.pricePaid, 0)}` }
+      { label: 'مجموع الدخل المستحق للكباتن', value: `${data.reduce((sum, c) => sum + c.pricePaid, 0)} ج.م` }
     ]);
   };
 
@@ -346,11 +280,7 @@ export default function AdminDashboardPage() {
     if (savedLogs) {
       setAuditLogs(JSON.parse(savedLogs));
     } else {
-      const defaultLogs: AuditLog[] = [
-        { id: 'l-1', action: 'Platform initial license modules loaded successfully', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), type: 'system' },
-        { id: 'l-2', action: 'Emily Watson was onboarded as Administrative Manager (Full Admin)', timestamp: new Date(Date.now() - 3600000).toISOString(), type: 'info' },
-        { id: 'l-3', action: 'License for Coach Mark Reed was created automatically (Yearly Plan)', timestamp: new Date(Date.now() - 1800000).toISOString(), type: 'success' },
-      ];
+      const defaultLogs: AuditLog[] = [];
       setAuditLogs(defaultLogs);
       localStorage.setItem('platformAuditLogs', JSON.stringify(defaultLogs));
     }
@@ -393,10 +323,10 @@ export default function AdminDashboardPage() {
     localStorage.setItem('platformConfig', JSON.stringify(merged));
     
     if (updates.monthlyPrice !== undefined) {
-      addAuditLog(`Base Monthly License Fee updated to $${updates.monthlyPrice}`, 'info');
+      addAuditLog(`Base Monthly License Fee updated to EGP ${updates.monthlyPrice}`, 'info');
     }
     if (updates.yearlyPrice !== undefined) {
-      addAuditLog(`Base Yearly License Fee updated to $${updates.yearlyPrice}`, 'info');
+      addAuditLog(`Base Yearly License Fee updated to EGP ${updates.yearlyPrice}`, 'info');
     }
     if (updates.isMaintenanceMode !== undefined) {
       addAuditLog(`Platform Maintenance Mode set to ${updates.isMaintenanceMode ? 'ENABLED' : 'DISABLED'}`, updates.isMaintenanceMode ? 'warning' : 'success');
@@ -460,7 +390,7 @@ export default function AdminDashboardPage() {
     setIsGrantModalOpen(false);
 
     toast.success(`Access granted to ${newCoach.name} successfully!`);
-    addAuditLog(`Granted license access to Coach ${newCoach.name} (${newCoach.planType} Plan - $${newCoach.pricePaid})`, 'success');
+    addAuditLog(`Granted license access to Coach ${newCoach.name} (${newCoach.planType} Plan - EGP ${newCoach.pricePaid})`, 'success');
   };
 
   const handleExtendSubscription = (coachId: string) => {
@@ -567,7 +497,7 @@ export default function AdminDashboardPage() {
     { label: 'Total Coaches', value: String(totalCoachesCount), icon: Users, color: 'text-brand-purple' },
     { label: 'Active Subscriptions', value: String(activeSubsCount), icon: UserCheck, color: 'text-green-500' },
     { label: 'Expired Subscriptions', value: String(expiredSubsCount), icon: AlertCircle, color: 'text-red-500' },
-    { label: 'Monthly Recurring Revenue', value: `$${totalRevenueSum}`, icon: DollarSign, color: 'text-blue-500' },
+    { label: 'Monthly Recurring Revenue', value: `EGP ${totalRevenueSum}`, icon: DollarSign, color: 'text-blue-500' },
   ];
 
   const userDistData = [
@@ -714,7 +644,7 @@ export default function AdminDashboardPage() {
                         </td>
 
                         <td className="py-5 px-4 font-black text-foreground">
-                          ${coach.pricePaid}
+                          EGP {coach.pricePaid}
                         </td>
 
                         <td className="py-5 px-4 font-bold text-muted-foreground">
@@ -846,28 +776,28 @@ export default function AdminDashboardPage() {
                 <div className="space-y-4">
                   {/* Monthly License Rate Input */}
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">Monthly License Fee ($)</label>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">Monthly License Fee (EGP)</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">$</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">EGP</span>
                       <input
                         type="number"
                         value={monthlyPrice}
                         onChange={(e) => updateConfig({ monthlyPrice: Math.max(0, parseInt(e.target.value) || 0) })}
-                        className="w-full pl-8 pr-4 py-2.5 rounded-xl bg-background border border-border text-xs font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                        className="w-full pl-12 pr-4 py-2.5 rounded-xl bg-background border border-border text-xs font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   {/* Yearly License Rate Input */}
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">Yearly License Fee ($)</label>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">Yearly License Fee (EGP)</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">$</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">EGP</span>
                       <input
                         type="number"
                         value={yearlyPrice}
                         onChange={(e) => updateConfig({ yearlyPrice: Math.max(0, parseInt(e.target.value) || 0) })}
-                        className="w-full pl-8 pr-4 py-2.5 rounded-xl bg-background border border-border text-xs font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                        className="w-full pl-12 pr-4 py-2.5 rounded-xl bg-background border border-border text-xs font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -1035,7 +965,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground font-medium">Monthly SaaS Income</p>
-              <p className="text-3xl font-black mt-1">${coachSaaSFeeSum}</p>
+              <p className="text-3xl font-black mt-1">EGP {coachSaaSFeeSum}</p>
               <p className="text-[10px] text-muted-foreground mt-1.5 font-bold uppercase">From active coach licenses</p>
             </div>
 
@@ -1046,7 +976,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground font-medium">Monthly Client Income</p>
-              <p className="text-3xl font-black mt-1">${clientRevenueSum}</p>
+              <p className="text-3xl font-black mt-1">EGP {clientRevenueSum}</p>
               <p className="text-[10px] text-muted-foreground mt-1.5 font-bold uppercase">From trainee subscriptions</p>
             </div>
           </div>
@@ -1094,7 +1024,7 @@ export default function AdminDashboardPage() {
                                 {coach.traineesCount} clients
                               </td>
                               <td className="py-4 px-4 font-black text-brand-purple text-sm">
-                                ${coach.earnings}
+                                EGP {coach.earnings}
                               </td>
                               <td className="py-4 px-4 text-right">
                                 <button
@@ -1172,7 +1102,7 @@ export default function AdminDashboardPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Monthly Fee ($)</label>
+                      <label className="block text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Monthly Fee (EGP)</label>
                       <input
                         type="number"
                         value={newClientPrice}
@@ -1338,7 +1268,7 @@ export default function AdminDashboardPage() {
                           <td className="py-4 px-4 text-muted-foreground">{client.email}</td>
                           <td className="py-4 px-4 font-bold text-foreground">{coachName}</td>
                           <td className="py-4 px-4 text-muted-foreground">{client.packageName}</td>
-                          <td className="py-4 px-4 font-black text-brand-purple">${client.pricePaid}</td>
+                          <td className="py-4 px-4 font-black text-brand-purple">EGP {client.pricePaid}</td>
                           <td className="py-4 px-4">
                             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
                               client.joinedType === 'New'
@@ -1456,7 +1386,7 @@ export default function AdminDashboardPage() {
                     <p className="font-bold text-foreground">SaaS Revenue Stream</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Tier licensing fee rate</p>
                   </div>
-                  <span className="font-black text-brand-purple text-lg">${price} Paid</span>
+                  <span className="font-black text-brand-purple text-lg">EGP {price} Paid</span>
                 </div>
 
                 <div className="flex space-x-4 pt-4">
@@ -1538,7 +1468,7 @@ export default function AdminDashboardPage() {
                             <td className="py-4 px-4 font-medium text-foreground">{client.phone}</td>
                             <td className="py-4 px-4 text-muted-foreground">{client.email}</td>
                             <td className="py-4 px-4 font-bold text-foreground">{client.packageName}</td>
-                            <td className="py-4 px-4 font-black text-brand-purple">${client.pricePaid}</td>
+                            <td className="py-4 px-4 font-black text-brand-purple">EGP {client.pricePaid}</td>
                             <td className="py-4 px-4">
                               <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${statusColor}`}>
                                 {client.status}

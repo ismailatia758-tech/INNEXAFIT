@@ -26,9 +26,9 @@ export default function ClientBillingPage() {
   
   // Interactive device management mock
   const [devices, setDevices] = useState<LinkedDevice[]>([
-    { id: 'dev-1', name: 'iPhone 15 Pro Max (My Phone)', lastActive: 'Active now', isCurrent: true },
-    { id: 'dev-2', name: 'MacBook Air M3', lastActive: '2 hours ago', isCurrent: false }
+    { id: 'dev-1', name: 'My Current Device (Active Session)', lastActive: 'Active now', isCurrent: true }
   ]);
+  const [receipts, setReceipts] = useState<any[]>([]);
   const [deviceNameInput, setDeviceNameInput] = useState('');
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function ClientBillingPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 rounded-2xl bg-background border border-border/80 text-center">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Price Rate</p>
-                  <p className="text-lg font-black mt-1">${activeSubscription.price}</p>
+                  <p className="text-lg font-black mt-1">EGP {activeSubscription.price}</p>
                   <p className="text-[9px] text-muted-foreground mt-0.5">per {activeSubscription.durationValue} {activeSubscription.durationType === 'Monthly' ? 'Month(s)' : activeSubscription.durationType === 'Weekly' ? 'Week(s)' : 'Day(s)'}</p>
                 </div>
                 
@@ -155,39 +155,27 @@ export default function ClientBillingPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    <tr>
-                      <td className="p-4 font-bold text-foreground">2026-06-09</td>
-                      <td className="p-4 text-muted-foreground">Subscription Renewal - Premium Muscle Builder</td>
-                      <td className="p-4 font-bold">$149.00</td>
-                      <td className="p-4">
-                        <span className="flex items-center gap-1 text-green-500 font-bold">
-                          <Check size={14} className="stroke-[3]" />
-                          <span>Paid</span>
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="p-4 font-bold text-foreground">2026-05-09</td>
-                      <td className="p-4 text-muted-foreground">Subscription Renewal - Premium Muscle Builder</td>
-                      <td className="p-4 font-bold">$149.00</td>
-                      <td className="p-4">
-                        <span className="flex items-center gap-1 text-green-500 font-bold">
-                          <Check size={14} className="stroke-[3]" />
-                          <span>Paid</span>
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="p-4 font-bold text-foreground">2026-04-09</td>
-                      <td className="p-4 text-muted-foreground">Initial Sign Up - Premium Muscle Builder</td>
-                      <td className="p-4 font-bold">$149.00</td>
-                      <td className="p-4">
-                        <span className="flex items-center gap-1 text-green-500 font-bold">
-                          <Check size={14} className="stroke-[3]" />
-                          <span>Paid</span>
-                        </span>
-                      </td>
-                    </tr>
+                    {receipts.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-muted-foreground text-sm font-medium">
+                          No receipts found.
+                        </td>
+                      </tr>
+                    ) : (
+                      receipts.map((rec: any) => (
+                        <tr key={rec.id}>
+                          <td className="p-4 font-bold text-foreground">{rec.date}</td>
+                          <td className="p-4 text-muted-foreground">{rec.desc}</td>
+                          <td className="p-4 font-bold">{rec.amount}</td>
+                          <td className="p-4">
+                            <span className="flex items-center gap-1 text-green-500 font-bold">
+                              <Check size={14} className="stroke-[3]" />
+                              <span>{rec.status}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

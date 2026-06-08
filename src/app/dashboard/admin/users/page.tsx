@@ -27,32 +27,7 @@ interface StaffUser {
   joined: string;
 }
 
-const defaultStaff: StaffUser[] = [
-  {
-    id: 's-1',
-    name: 'Emily Watson',
-    email: 'emily@innexa-fit.com',
-    role: 'Administrative Manager',
-    permission: 'Full Admin',
-    joined: '2026-03-12'
-  },
-  {
-    id: 's-2',
-    name: 'Robert Johnson',
-    email: 'robert@support.pro',
-    role: 'CS Representative',
-    permission: 'Viewer',
-    joined: '2026-05-15'
-  },
-  {
-    id: 's-3',
-    name: 'Sophia Lee',
-    email: 'sophia@finance.pro',
-    role: 'Accountant',
-    permission: 'Editor',
-    joined: '2026-05-20'
-  }
-];
+const defaultStaff: StaffUser[] = [];
 
 export default function AdminUsersPage() {
   const [staffList, setStaffList] = useState<StaffUser[]>([]);

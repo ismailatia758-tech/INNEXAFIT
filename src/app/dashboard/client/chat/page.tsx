@@ -39,11 +39,7 @@ export default function ClientChatPage() {
     if (saved) {
       setMessages(JSON.parse(saved));
     } else {
-      const defaults: Message[] = [
-        { id: 'm1', sender: 'coach', text: "Hello! Welcome to your coaching workspace. I'll be posting your workouts and meal templates here.", timestamp: '10:00 AM' },
-        { id: 'm2', sender: 'client', text: "Thanks coach! Looking forward to starting the muscle builder program.", timestamp: '10:05 AM' },
-        { id: 'm3', sender: 'coach', text: "Excellent! Let me know if you have any questions about the exercises or targets.", timestamp: '10:06 AM' }
-      ];
+      const defaults: Message[] = [];
       setMessages(defaults);
       localStorage.setItem('clientCoachMessages', JSON.stringify(defaults));
     }
