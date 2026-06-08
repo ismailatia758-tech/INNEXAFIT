@@ -1,0 +1,28 @@
+# Render.com Blueprint - One-Click Deploy for INNEXAFIT Backend
+# Visit https://render.com/deploy to use this file
+
+databases:
+  - name: innexafit-db
+    plan: free
+    databaseName: innexafit
+    user: innexafit_user
+
+services:
+  - type: web
+    name: innexafit-api
+    plan: free
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: innexafit-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000

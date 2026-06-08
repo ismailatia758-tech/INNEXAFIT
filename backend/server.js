@@ -32,12 +32,29 @@ if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
   fs.mkdirSync(path.join(__dirname, 'uploads'));
 }
 
-// Database Connection
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: path.join(__dirname, 'database.sqlite'),
-  logging: false,
-});
+// Database Connection - PostgreSQL in production, SQLite for local dev
+let sequelize;
+if (process.env.DATABASE_URL) {
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    protocol: 'postgres',
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    },
+    logging: false,
+  });
+  console.log('Using PostgreSQL database (production)');
+} else {
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: path.join(__dirname, 'database.sqlite'),
+    logging: false,
+  });
+  console.log('Using SQLite database (local development)');
+}
 
 // Database Models
 const User = sequelize.define('User', {
@@ -51,7 +68,7 @@ const User = sequelize.define('User', {
   gender: { type: DataTypes.STRING },
   birthDate: { type: DataTypes.STRING },
   planType: { type: DataTypes.STRING, defaultValue: 'Pending' },
-  pricePaid: { type: DataTypes.NUMBER, defaultValue: 0 },
+  pricePaid: { type: DataTypes.FLOAT, defaultValue: 0 },
   status: { type: DataTypes.STRING, defaultValue: 'Pending' },
   startDate: { type: DataTypes.STRING },
   expiryDate: { type: DataTypes.STRING },
@@ -82,7 +99,7 @@ const Transaction = sequelize.define('Transaction', {
   id: { type: DataTypes.STRING, primaryKey: true },
   clientEmail: { type: DataTypes.STRING },
   packageName: { type: DataTypes.STRING },
-  amount: { type: DataTypes.NUMBER },
+  amount: { type: DataTypes.FLOAT },
   status: { type: DataTypes.STRING },
   date: { type: DataTypes.STRING }
 });
@@ -90,7 +107,7 @@ const Transaction = sequelize.define('Transaction', {
 const CheckIn = sequelize.define('CheckIn', {
   id: { type: DataTypes.STRING, primaryKey: true },
   clientEmail: { type: DataTypes.STRING },
-  weight: { type: DataTypes.NUMBER },
+  weight: { type: DataTypes.FLOAT },
   date: { type: DataTypes.STRING }
 });
 
@@ -105,7 +122,7 @@ const SubscriptionPackage = sequelize.define('SubscriptionPackage', {
   id: { type: DataTypes.STRING, primaryKey: true },
   name: { type: DataTypes.STRING, allowNull: false },
   durationMonths: { type: DataTypes.INTEGER, defaultValue: 1 },
-  price: { type: DataTypes.NUMBER, defaultValue: 0 },
+  price: { type: DataTypes.FLOAT, defaultValue: 0 },
   description: { type: DataTypes.TEXT },
   coachId: { type: DataTypes.STRING, allowNull: false }
 });
