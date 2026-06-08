@@ -5,63 +5,502 @@ import Sidebar from '@/components/dashboard/Sidebar';
 import Header from '@/components/dashboard/Header';
 import { useAuth } from '@/store/useAuth';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert, RefreshCw, MessageCircle, LogOut, ClipboardList } from 'lucide-react';
+import { ShieldAlert, RefreshCw, MessageCircle, LogOut, ClipboardList, Crown, Check, CreditCard, Sparkles, Upload, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/store/useLanguage';
+import api from '@/lib/api';
 
 // ─── Subscription Gate for Expired Coaches ───────────────────────────────────
 function CoachSubscriptionExpiredGate({ user, onLogout }: { user: any; onLogout: () => void }) {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
+  
+  const [step, setStep] = useState(1);
+  const [selectedPlan, setSelectedPlan] = useState<'Monthly' | 'Yearly'>('Monthly');
+  const [paymentMethod, setPaymentMethod] = useState<'instapay' | 'wallet'>('instapay');
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbUser, setDbUser] = useState<any>(null);
+  const [loadingDb, setLoadingDb] = useState(true);
+  const [prices, setPrices] = useState({ monthly: 49, yearly: 399 });
+
+  const fetchMe = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      setDbUser(res.data);
+      if (res.data.paymentScreenshot) {
+        setStep(5); // Show waiting screen if screenshot is already uploaded
+      }
+    } catch (err) {
+      console.error('Failed to load user status from backend:', err);
+    } finally {
+      setLoadingDb(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMe();
+    
+    const savedConfig = localStorage.getItem('platformConfig');
+    if (savedConfig) {
+      const config = JSON.parse(savedConfig);
+      setPrices({
+        monthly: config.monthlyPrice ?? 49,
+        yearly: config.yearlyPrice ?? 399
+      });
+    }
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setScreenshotFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUploadAndSubmit = async () => {
+    if (!screenshotFile) {
+      toast.error(isEn ? 'Please upload a screenshot of your payment' : 'يرجى رفع صورة لإثبات الدفع');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const formData = new FormData();
+    formData.append('file', screenshotFile);
+
+    try {
+      // 1. Upload screenshot
+      const uploadRes = await api.post('/api/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const fileUrl = uploadRes.data.fileUrl;
+
+      // 2. Update status and save screenshot in database
+      const price = selectedPlan === 'Monthly' ? prices.monthly : prices.yearly;
+      await api.put(`/admin/coaches/${user.id}`, {
+        status: 'Pending',
+        planType: selectedPlan,
+        pricePaid: price,
+        paymentScreenshot: fileUrl
+      });
+
+      // 3. Update localStorage platformCoaches list
+      const savedCoachesStr = localStorage.getItem('platformCoaches');
+      const coaches = savedCoachesStr ? JSON.parse(savedCoachesStr) : [];
+      const coachIndex = coaches.findIndex((c: any) => c.email.toLowerCase() === user.email.toLowerCase());
+      
+      const updatedCoach = {
+        id: coachIndex >= 0 ? coaches[coachIndex].id : 'c-' + Math.random().toString(36).substr(2, 9),
+        name: user.name || 'Coach',
+        email: user.email,
+        username: user.username || user.email.split('@')[0] + '@innexafit.com',
+        planType: selectedPlan,
+        pricePaid: price,
+        status: 'Pending',
+        paymentScreenshot: fileUrl,
+        startDate: new Date().toISOString().split('T')[0],
+        expiryDate: new Date().toISOString().split('T')[0] // Will be correctly set on admin approval
+      };
+
+      if (coachIndex >= 0) {
+        coaches[coachIndex] = updatedCoach;
+      } else {
+        coaches.push(updatedCoach);
+      }
+      localStorage.setItem('platformCoaches', JSON.stringify(coaches));
+
+      // 4. Log Audit
+      const savedLogsStr = localStorage.getItem('platformAuditLogs');
+      const auditLogs = savedLogsStr ? JSON.parse(savedLogsStr) : [];
+      const newLog = {
+        id: 'log-' + Math.random().toString(36).substr(2, 9),
+        action: `Coach ${user.name} submitted payment screenshot for ${selectedPlan} license approval.`,
+        timestamp: new Date().toISOString(),
+        type: 'info'
+      };
+      localStorage.setItem('platformAuditLogs', JSON.stringify([newLog, ...auditLogs].slice(0, 50)));
+
+      toast.success(isEn ? 'Payment screenshot uploaded successfully!' : 'تم رفع صورة التحويل بنجاح!');
+      setStep(5);
+    } catch (err) {
+      toast.error(isEn ? 'Failed to submit payment. Please try again.' : 'فشل إرسال إثبات الدفع. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const checkStatus = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      setDbUser(res.data);
+      if (res.data.status === 'Active') {
+        toast.success(isEn ? 'Your account has been activated! Welcome.' : 'تم تفعيل حسابك بنجاح! أهلاً بك.');
+        window.location.reload(); // Refresh the page to unlock dashboard!
+      } else {
+        toast.error(isEn ? 'Your account is still pending verification.' : 'حسابك لا يزال قيد المراجعة والتحقق.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (loadingDb) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-md text-center space-y-6">
-        {/* Glowing icon */}
-        <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shadow-[0_0_40px_rgba(244,63,94,0.15)]">
-            <ShieldAlert size={36} className="text-rose-500" />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-6 overflow-y-auto">
+      <div className="w-full max-w-md bg-card border border-border rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        
+        {step === 1 && (
+          <div className="space-y-6 text-center">
+            {/* Glowing icon */}
+            <div className="flex justify-center">
+              <div className="w-20 h-20 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shadow-[0_0_40px_rgba(244,63,94,0.15)] animate-pulse">
+                <ShieldAlert size={36} className="text-rose-500" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-2xl font-black text-white">
+                {isEn ? 'Subscription Expired' : 'انتهت صلاحية الاشتراك'}
+              </h1>
+              <p className="text-muted-foreground text-xs leading-relaxed max-w-sm mx-auto">
+                {isEn 
+                  ? 'Your platform license has expired or is pending activation. Your account has been temporarily locked until the subscription is renewed.'
+                  : 'انتهت صلاحية رخصة المنصة الخاصة بك أو في انتظار التفعيل. تم قفل حسابك مؤقتاً حتى يتم تجديد الاشتراك.'}
+              </p>
+            </div>
+
+            {/* Action cards */}
+            <div className="grid grid-cols-1 gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-border hover:border-primary/40 transition-all group text-left cursor-pointer w-full"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <RefreshCw size={18} className="text-primary group-hover:rotate-180 transition-transform duration-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-white">
+                    {isEn ? 'Renew My Subscription' : 'تجديد اشتراكي'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground text-left">
+                    {isEn ? 'Select a plan and process your payment' : 'اختر الخطة المناسبة وقم بعملية الدفع'}
+                  </p>
+                </div>
+              </button>
+
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-left">
+                <div className="w-10 h-10 rounded-xl bg-brand-purple/10 flex items-center justify-center flex-shrink-0">
+                  <MessageCircle size={18} className="text-brand-purple" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">
+                    {isEn ? 'Contact System Administrator' : 'تواصل مع إدارة النظام'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {isEn ? 'Reach out to the platform owner to activate' : 'تواصل مع مالك المنصة لتفعيل حسابك'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-all mt-4"
+            >
+              <LogOut size={14} />
+              <span>{isEn ? 'Log Out' : 'تسجيل الخروج'}</span>
+            </button>
           </div>
-        </div>
+        )}
 
-        <div className="space-y-2">
-          <h1 className="text-2xl font-extrabold text-white">Subscription Expired</h1>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Your platform license has expired or is pending activation.
-            Your account has been temporarily locked until the subscription is renewed.
-          </p>
-        </div>
+        {step === 2 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-border/50">
+              <button onClick={() => setStep(1)} className="text-muted-foreground hover:text-white transition-all bg-transparent border-0 cursor-pointer">
+                <ArrowLeft size={16} />
+              </button>
+              <h2 className="text-sm font-bold text-white">
+                {isEn ? 'Step 1: Choose Plan' : 'الخطوة ١: اختيار باقة'}
+              </h2>
+              <div className="w-4" />
+            </div>
 
-        {/* Action cards */}
-        <div className="grid grid-cols-1 gap-3 mt-6">
-          <a
-            href="/dashboard/coach/settings"
-            className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-border hover:border-primary/40 transition-all group text-left"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <RefreshCw size={18} className="text-primary group-hover:rotate-180 transition-transform duration-500" />
+            <div className="text-center space-y-1.5">
+              <h1 className="text-xl font-black text-white">
+                {isEn ? 'Select License Package' : 'اختر رخصة الاشتراك'}
+              </h1>
+              <p className="text-muted-foreground text-[11px]">
+                {isEn ? 'Select the billing period you want to subscribe to:' : 'حدد الباقة الزمنية التي ترغب بالاشتراك بها:'}
+              </p>
             </div>
-            <div>
-              <p className="text-sm font-bold text-white">Renew My Subscription</p>
-              <p className="text-[11px] text-muted-foreground">Go to Settings → Licensing to extend your plan</p>
-            </div>
-          </a>
 
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-left">
-            <div className="w-10 h-10 rounded-xl bg-brand-purple/10 flex items-center justify-center flex-shrink-0">
-              <MessageCircle size={18} className="text-brand-purple" />
+            <div className="grid grid-cols-2 gap-4 py-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPlan('Monthly')}
+                className={`p-5 rounded-2xl border text-center relative transition-all duration-300 flex flex-col items-center justify-between cursor-pointer ${
+                  selectedPlan === 'Monthly'
+                    ? 'border-primary bg-primary/5 shadow-md'
+                    : 'border-border bg-card/40 hover:border-border/80'
+                }`}
+              >
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                  {isEn ? 'Monthly' : 'شهري'}
+                </span>
+                <div className="my-1">
+                  <span className="text-xl font-black text-white">EGP {prices.monthly}</span>
+                  <span className="text-[10px] text-muted-foreground block">/{isEn ? 'month' : 'شهر'}</span>
+                </div>
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center mt-3 ${
+                  selectedPlan === 'Monthly' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                }`}>
+                  {selectedPlan === 'Monthly' && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedPlan('Yearly')}
+                className={`p-5 rounded-2xl border text-center relative transition-all duration-300 flex flex-col items-center justify-between cursor-pointer ${
+                  selectedPlan === 'Yearly'
+                    ? 'border-primary bg-primary/5 shadow-md'
+                    : 'border-border bg-card/40 hover:border-border/80'
+                }`}
+              >
+                <span className="absolute -top-2.5 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-[7px] font-black text-neutral-900 uppercase tracking-widest shadow">
+                  {isEn ? 'Save Big' : 'توفير أكبر'}
+                </span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                  {isEn ? 'Yearly' : 'سنوي'}
+                </span>
+                <div className="my-1">
+                  <span className="text-xl font-black text-white">EGP {prices.yearly}</span>
+                  <span className="text-[10px] text-muted-foreground block">/{isEn ? 'year' : 'سنة'}</span>
+                </div>
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center mt-3 ${
+                  selectedPlan === 'Yearly' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                }`}>
+                  {selectedPlan === 'Yearly' && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                </div>
+              </button>
             </div>
-            <div>
-              <p className="text-sm font-bold text-white">Contact System Administrator</p>
-              <p className="text-[11px] text-muted-foreground">Reach out to the platform owner to activate your license</p>
+
+            <button
+              onClick={() => setStep(3)}
+              className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/95 transition-all text-xs shadow-md mt-4 cursor-pointer"
+            >
+              {isEn ? 'Continue to Payment' : 'المتابعة لبيانات الدفع'}
+            </button>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-border/50">
+              <button onClick={() => setStep(2)} className="text-muted-foreground hover:text-white transition-all bg-transparent border-0 cursor-pointer">
+                <ArrowLeft size={16} />
+              </button>
+              <h2 className="text-sm font-bold text-white">
+                {isEn ? 'Step 2: Payment Method' : 'الخطوة ٢: طريقة الدفع'}
+              </h2>
+              <div className="w-4" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h1 className="text-xl font-black text-white">
+                {isEn ? 'Select Payment Method' : 'اختر وسيلة الدفع'}
+              </h1>
+              <p className="text-muted-foreground text-[11px]">
+                {isEn ? 'Choose how you would like to transfer:' : 'اختر الطريقة التي تفضل التحويل من خلالها:'}
+              </p>
+            </div>
+
+            <div className="flex p-1 rounded-xl bg-background border border-border">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('instapay')}
+                className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  paymentMethod === 'instapay'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                InstaPay
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('wallet')}
+                className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  paymentMethod === 'wallet'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {isEn ? 'Mobile Wallet' : 'محفظة إلكترونية'}
+              </button>
+            </div>
+
+            {/* Payment instruction box */}
+            <div className="p-5 rounded-2xl bg-background/60 border border-border/80 text-center space-y-4">
+              <div>
+                <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
+                  {isEn ? 'Transfer Amount' : 'المبلغ المطلوب تحويله'}
+                </span>
+                <span className="text-2xl font-black text-primary">
+                  EGP {selectedPlan === 'Monthly' ? prices.monthly : prices.yearly}
+                </span>
+              </div>
+
+              <div className="border-t border-border/40 pt-3">
+                <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider mb-1">
+                  {isEn ? 'Transfer Account / Number' : 'رقم التحويل للمحفظة وانستاباي'}
+                </span>
+                <span className="text-xl font-black text-white tracking-widest block bg-card border border-border py-2 rounded-xl">
+                  01110077531
+                </span>
+                <span className="text-[9px] text-yellow-500 block mt-1">
+                  {isEn 
+                    ? '* Both Instapay and Wallets transfer to this exact number.' 
+                    : '* التحويل لانستاباي والمحافظ الإلكترونية يتم على هذا الرقم مباشرة.'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setStep(4)}
+              className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/95 transition-all text-xs shadow-md mt-4 cursor-pointer"
+            >
+              {isEn ? 'I Transferred, Next Step' : 'قمت بالتحويل، الخطوة التالية'}
+            </button>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-border/50">
+              <button onClick={() => setStep(3)} className="text-muted-foreground hover:text-white transition-all bg-transparent border-0 cursor-pointer">
+                <ArrowLeft size={16} />
+              </button>
+              <h2 className="text-sm font-bold text-white">
+                {isEn ? 'Step 3: Upload Proof' : 'الخطوة ٣: إثبات الدفع'}
+              </h2>
+              <div className="w-4" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h1 className="text-xl font-black text-white">
+                {isEn ? 'Upload Receipt Screenshot' : 'رفع إيصال التحويل'}
+              </h1>
+              <p className="text-muted-foreground text-[11px]">
+                {isEn 
+                  ? 'Please select and upload a screenshot of your transfer receipt:'
+                  : 'يرجى تحديد ورفع لقطة الشاشة (سكرين شوت) لتفاصيل التحويل:'}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {screenshotPreview ? (
+                <div className="relative rounded-2xl border border-border overflow-hidden h-48 bg-background flex items-center justify-center group">
+                  <img src={screenshotPreview} alt="Transfer Proof" className="max-h-full max-w-full object-contain" />
+                  <button
+                    onClick={() => {
+                      setScreenshotFile(null);
+                      setScreenshotPreview(null);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 border border-border hover:bg-red-500/20 hover:text-red-500 transition-all text-xs font-bold text-white cursor-pointer"
+                  >
+                    {isEn ? 'Remove' : 'حذف'}
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 transition-all rounded-2xl h-44 cursor-pointer bg-background/20 group">
+                  <Upload size={32} className="text-muted-foreground group-hover:text-primary transition-all mb-2" />
+                  <span className="text-xs font-bold text-white">
+                    {isEn ? 'Choose Image' : 'اختر صورة الإيصال'}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground mt-1">
+                    JPEG, PNG, SVG up to 5MB
+                  </span>
+                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                </label>
+              )}
+            </div>
+
+            <button
+              onClick={handleUploadAndSubmit}
+              disabled={isSubmitting || !screenshotFile}
+              className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/95 transition-all text-xs shadow-md disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <CreditCard size={15} />
+              <span>
+                {isSubmitting 
+                  ? (isEn ? 'Submitting Details...' : 'جاري إرسال البيانات...') 
+                  : (isEn ? 'Submit & Confirm Payment' : 'إرسال وتأكيد عملية الدفع')}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="space-y-6 text-center">
+            {/* Glowing clock/loading icon */}
+            <div className="flex justify-center">
+              <div className="w-20 h-20 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.15)] animate-pulse">
+                <RefreshCw size={36} className="text-amber-500 animate-spin" style={{ animationDuration: '3s' }} />
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <h1 className="text-2xl font-black text-white">
+                {isEn ? 'Payment Under Verification' : 'قيد التحقق والمراجعة'}
+              </h1>
+              <p className="text-yellow-500 text-xs font-black bg-yellow-500/10 border border-yellow-500/20 py-2.5 px-4 rounded-xl max-w-sm mx-auto">
+                {isEn 
+                  ? 'Your account will be activated in moments'
+                  : 'في خلال لحظات هيتم تفعيل حسابك'}
+              </p>
+              <p className="text-muted-foreground text-[11px] leading-relaxed max-w-xs mx-auto">
+                {isEn 
+                  ? 'We are verifying your transfer details. As soon as the administrator approves, your dashboard will unlock.'
+                  : 'جاري التحقق من تفاصيل إيصال التحويل الذي قمت برفعه. بمجرد تأكيد الإدارة، سيتم فتح لوحة التحكم تلقائياً.'}
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-border/50">
+              <button
+                type="button"
+                onClick={checkStatus}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/95 transition-all text-xs shadow-md cursor-pointer"
+              >
+                <RefreshCw size={14} />
+                <span>{isEn ? 'Refresh Status' : 'تحديث حالة التفعيل'}</span>
+              </button>
+
+              <button
+                onClick={onLogout}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-all mt-2 cursor-pointer"
+              >
+                <LogOut size={14} />
+                <span>{isEn ? 'Log Out' : 'تسجيل الخروج'}</span>
+              </button>
             </div>
           </div>
-        </div>
-
-        <button
-          onClick={onLogout}
-          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-all mt-2"
-        >
-          <LogOut size={14} />
-          <span>Log Out</span>
-        </button>
+        )}
       </div>
     </div>
   );
@@ -478,19 +917,50 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!user) return;
 
-    if (user.role === 'COACH') {
-      const status = getCoachSubscriptionStatus(user.email);
-      setSubscriptionStatus(status);
-    } else if (user.role === 'CLIENT') {
-      const status = getClientSubscriptionStatus(user.email);
-      setSubscriptionStatus(status);
+    const checkSubscription = async () => {
+      // 1. Local storage check for immediate load
+      if (user.role === 'COACH') {
+        const status = getCoachSubscriptionStatus(user.email);
+        setSubscriptionStatus(status);
+      } else if (user.role === 'CLIENT') {
+        const status = getClientSubscriptionStatus(user.email);
+        setSubscriptionStatus(status);
 
-      const lock = getClientLockStatus(user.email);
-      setLockStatus(lock);
-    } else {
-      // ADMIN — never gated
-      setSubscriptionStatus('Active');
-    }
+        const lock = getClientLockStatus(user.email);
+        setLockStatus(lock);
+      } else {
+        setSubscriptionStatus('Active');
+      }
+
+      // 2. Fetch real-time status from backend if available
+      try {
+        const res = await api.get('/auth/me');
+        const dbUser = res.data;
+        if (user.role === 'COACH') {
+          if (dbUser.status === 'Active') {
+            setSubscriptionStatus('Active');
+            
+            // Sync with local storage platformCoaches so other pages are in sync!
+            const savedCoachesStr = localStorage.getItem('platformCoaches');
+            const coaches = savedCoachesStr ? JSON.parse(savedCoachesStr) : [];
+            const idx = coaches.findIndex((c: any) => c.email.toLowerCase() === user.email.toLowerCase());
+            if (idx >= 0) {
+              coaches[idx].status = 'Active';
+              coaches[idx].planType = dbUser.planType;
+              coaches[idx].expiryDate = dbUser.expiryDate;
+              coaches[idx].startDate = dbUser.startDate;
+              localStorage.setItem('platformCoaches', JSON.stringify(coaches));
+            }
+          } else {
+            setSubscriptionStatus(dbUser.status || 'Pending');
+          }
+        }
+      } catch (err) {
+        console.warn('Could not sync user with backend:', err);
+      }
+    };
+
+    checkSubscription();
   }, [user]);
 
   const refreshLockStatus = () => {

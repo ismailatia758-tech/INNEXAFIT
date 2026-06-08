@@ -80,6 +80,7 @@ const User = sequelize.define('User', {
   status: { type: DataTypes.STRING, defaultValue: 'Pending' },
   startDate: { type: DataTypes.STRING },
   expiryDate: { type: DataTypes.STRING },
+  paymentScreenshot: { type: DataTypes.STRING },
   parentCoachId: { type: DataTypes.STRING }, // Used for clients to map to coach
 });
 
@@ -305,6 +306,16 @@ app.get('/api/auth/verify', (req, res) => {
   res.json({ message: 'Email verification successfully simulated!' });
 });
 
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.post('/api/auth/forgot-password', (req, res) => {
   res.json({ message: 'Password reset instructions sent!' });
 });
@@ -523,9 +534,9 @@ app.get('/api/admin/coaches', authenticateToken, async (req, res) => {
 // ADMIN: Update coach details (activate, change plan, extend expiration)
 app.put('/api/admin/coaches/:id', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+    if (req.user.role !== 'ADMIN' && req.user.id !== req.params.id) return res.status(403).json({ message: 'Forbidden' });
     const { id } = req.params;
-    const { status, planType, pricePaid, expiryDate, startDate, name } = req.body;
+    const { status, planType, pricePaid, expiryDate, startDate, name, paymentScreenshot } = req.body;
 
     const coach = await User.findByPk(id);
     if (!coach) return res.status(404).json({ message: 'Coach not found' });
@@ -536,6 +547,7 @@ app.put('/api/admin/coaches/:id', authenticateToken, async (req, res) => {
     if (expiryDate) coach.expiryDate = expiryDate;
     if (startDate) coach.startDate = startDate;
     if (name) coach.name = name;
+    if (paymentScreenshot !== undefined) coach.paymentScreenshot = paymentScreenshot;
 
     await coach.save();
     res.json(coach);
@@ -550,6 +562,39 @@ app.get('/api/admin/clients', authenticateToken, async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
     const clients = await User.findAll({ where: { role: 'CLIENT' } });
     res.json(clients);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ADMIN: Update client status (suspend, activate)
+app.put('/api/admin/clients/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const client = await User.findByPk(id);
+    if (!client) return res.status(404).json({ message: 'Client not found' });
+
+    if (status) client.status = status;
+    await client.save();
+    res.json(client);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ADMIN: Delete a user (coach or client)
+app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+    const { id } = req.params;
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    await user.destroy();
+    res.json({ message: 'User deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

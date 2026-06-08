@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
   Mail, 
@@ -13,13 +13,21 @@ import {
   Camera, 
   Save, 
   KeyRound,
-  ShieldCheck
+  ShieldCheck,
+  Upload,
+  X,
+  Check,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '@/store/useAuth';
+import { useLanguage } from '@/store/useLanguage';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 export default function SettingsPage() {
   const { user, setAuth, accessToken, refreshToken } = useAuth();
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   
   // State for Personal Info
   const [name, setName] = useState(user?.name || 'Coach Innexa');
@@ -37,6 +45,13 @@ export default function SettingsPage() {
   // State for Licensing
   const [coachSubscription, setCoachSubscription] = useState<any>(null);
   const [prices, setPrices] = useState({ monthly: 49, yearly: 399 });
+  
+  // Renewal Wizard states
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [renewPlan, setRenewPlan] = useState<'Monthly' | 'Yearly'>('Monthly');
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [isSubmittingRenewal, setIsSubmittingRenewal] = useState(false);
 
   useEffect(() => {
     const savedConfig = localStorage.getItem('platformConfig');
@@ -184,6 +199,91 @@ export default function SettingsPage() {
       localStorage.setItem('platformAuditLogs', JSON.stringify([newLog, ...auditLogs].slice(0, 50)));
 
       toast.success(`Switched plan to ${nextPlan} successfully!`);
+    }
+  };
+
+  const handleRenewFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setScreenshotFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRenewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast.error('User session not found');
+      return;
+    }
+    if (!screenshotFile) {
+      toast.error('Please upload a payment screenshot');
+      return;
+    }
+
+    setIsSubmittingRenewal(true);
+    const formData = new FormData();
+    formData.append('file', screenshotFile);
+
+    try {
+      // 1. Upload receipt image
+      const uploadRes = await api.post('/api/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const fileUrl = uploadRes.data.fileUrl;
+
+      // 2. Update status and screenshot in database
+      const price = renewPlan === 'Monthly' ? prices.monthly : prices.yearly;
+      await api.put(`/admin/coaches/${user.id}`, {
+        status: 'Pending',
+        planType: renewPlan,
+        pricePaid: price,
+        paymentScreenshot: fileUrl
+      });
+
+      // 3. Update localStorage platformCoaches list
+      const savedCoachesStr = localStorage.getItem('platformCoaches');
+      if (savedCoachesStr) {
+        const coaches = JSON.parse(savedCoachesStr);
+        const updated = coaches.map((c: any) => {
+          if (c.email.toLowerCase() === user.email.toLowerCase()) {
+            return {
+              ...c,
+              status: 'Pending',
+              planType: renewPlan,
+              pricePaid: price,
+              paymentScreenshot: fileUrl
+            };
+          }
+          return c;
+        });
+        localStorage.setItem('platformCoaches', JSON.stringify(updated));
+      }
+
+      // 4. Log Audit
+      const savedLogsStr = localStorage.getItem('platformAuditLogs');
+      const auditLogs = savedLogsStr ? JSON.parse(savedLogsStr) : [];
+      const newLog = {
+        id: 'log-' + Math.random().toString(36).substr(2, 9),
+        action: `Coach ${user.name} submitted a renewal request (${renewPlan} Plan) and uploaded payment screenshot.`,
+        timestamp: new Date().toISOString(),
+        type: 'info'
+      };
+      localStorage.setItem('platformAuditLogs', JSON.stringify([newLog, ...auditLogs].slice(0, 50)));
+
+      toast.success('Renewal request submitted successfully! Verifying payment details.');
+      setIsRenewModalOpen(false);
+      
+      // Reload page so DashboardLayout immediately gates them with Step 5 (waiting for activation)
+      window.location.reload();
+    } catch (err) {
+      toast.error('Failed to submit renewal request. Please try again.');
+    } finally {
+      setIsSubmittingRenewal(false);
     }
   };
 
@@ -422,41 +522,35 @@ export default function SettingsPage() {
               {/* Renewal / Upgrade Actions */}
               <div className="flex flex-col justify-between space-y-4">
                 <div>
-                  <h4 className="text-sm font-bold mb-2">License Options</h4>
+                  <h4 className="text-sm font-bold mb-2">
+                    {isEn ? 'License Renewal' : 'تجديد الترخيص'}
+                  </h4>
                   <p className="text-xs text-muted-foreground">
-                    Extend your current licensing tier or switch to the alternative duration configuration set by the administrator.
+                    {isEn 
+                      ? 'Renew your subscription license. You can choose a new billing plan and upload a transfer screenshot to activate.'
+                      : 'قم بتجديد رخصة اشتراكك. يمكنك اختيار خطة فوترة جديدة ورفع لقطة شاشة لعملية التحويل للتفعيل.'}
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <button
                     type="button"
-                    onClick={handleExtendLicense}
-                    className="w-full flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-primary/50 transition-all group"
+                    onClick={() => setIsRenewModalOpen(true)}
+                    className="w-full flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-primary/50 transition-all group cursor-pointer"
                   >
-                    <div className="text-left">
-                      <span className="block text-xs font-bold text-white">Extend {coachSubscription.planType} Subscription</span>
-                      <span className="block text-[10px] text-muted-foreground mt-0.5">
-                        Add 1 {coachSubscription.planType === 'Monthly' ? 'month' : 'year'} for EGP {coachSubscription.planType === 'Monthly' ? prices.monthly : prices.yearly}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-primary group-hover:underline">Extend &rarr;</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSwitchPlan}
-                    className="w-full flex items-center justify-between p-4 rounded-xl border border-brand-purple/20 bg-brand-purple/5 hover:border-brand-purple/50 transition-all group"
-                  >
-                    <div className="text-left">
+                    <div className={isEn ? 'text-left' : 'text-right w-full'}>
                       <span className="block text-xs font-bold text-white">
-                        Switch to {coachSubscription.planType === 'Monthly' ? 'Yearly' : 'Monthly'} License
+                        {isEn ? 'Renew Subscription / تجديد الاشتراك' : 'تجديد الاشتراك / Renew Subscription'}
                       </span>
                       <span className="block text-[10px] text-muted-foreground mt-0.5">
-                        Switch to {coachSubscription.planType === 'Monthly' ? 'Yearly' : 'Monthly'} plan billing for EGP {coachSubscription.planType === 'Monthly' ? prices.yearly : prices.monthly}
+                        {isEn 
+                          ? 'Select a plan and upload a payment screenshot'
+                          : 'حدد الباقة وقم برفع صورة إثبات الدفع'}
                       </span>
                     </div>
-                    <span className="text-xs font-bold text-primary group-hover:underline">Switch &rarr;</span>
+                    <span className="text-xs font-bold text-primary group-hover:underline">
+                      {isEn ? 'Renew' : 'تجديد'} &rarr;
+                    </span>
                   </button>
                 </div>
               </div>
@@ -476,6 +570,174 @@ export default function SettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* Renewal Modal */}
+      <AnimatePresence>
+        {isRenewModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-card border border-border rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative overflow-hidden text-right"
+              dir={isEn ? "ltr" : "rtl"}
+            >
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={() => setIsRenewModalOpen(false)}
+                className={`absolute top-6 ${isEn ? 'right-6' : 'left-6'} p-1.5 rounded-xl border border-border bg-background/50 hover:bg-muted-foreground/10 transition-all text-muted-foreground hover:text-white cursor-pointer`}
+              >
+                <X size={16} />
+              </button>
+
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="space-y-2 text-center">
+                  <div className="flex justify-center mb-2">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <CreditCard size={24} />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-white">
+                    {isEn ? 'Renew Subscription' : 'تجديد الاشتراك'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {isEn ? 'Please choose your plan and upload payment proof' : 'الرجاء اختيار الباقة ورفع إثبات الدفع'}
+                  </p>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleRenewSubmit} className="space-y-4 text-left">
+                  {/* Plan Selection */}
+                  <div>
+                    <label className={`block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 ${isEn ? 'text-left' : 'text-right'}`}>
+                      {isEn ? 'Choose Plan' : 'اختر الباقة'}
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setRenewPlan('Monthly')}
+                        className={`p-4 rounded-2xl border text-center relative transition-all flex flex-col items-center justify-center cursor-pointer ${
+                          renewPlan === 'Monthly'
+                            ? 'border-primary bg-primary/5 shadow-md font-bold'
+                            : 'border-border bg-background/50 hover:border-border/80'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                          {isEn ? 'Monthly' : 'شهري'}
+                        </span>
+                        <span className="text-base font-black text-white">EGP {prices.monthly}</span>
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center mt-2 ${
+                          renewPlan === 'Monthly' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                        }`}>
+                          {renewPlan === 'Monthly' && <Check className="w-2 h-2 stroke-[3]" />}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRenewPlan('Yearly')}
+                        className={`p-4 rounded-2xl border text-center relative transition-all flex flex-col items-center justify-center cursor-pointer ${
+                          renewPlan === 'Yearly'
+                            ? 'border-primary bg-primary/5 shadow-md font-bold'
+                            : 'border-border bg-background/50 hover:border-border/80'
+                        }`}
+                      >
+                        <span className="absolute -top-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-[6px] font-black text-neutral-900 uppercase tracking-widest shadow">
+                          {isEn ? 'Save Big' : 'توفير أكبر'}
+                        </span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                          {isEn ? 'Yearly' : 'سنوي'}
+                        </span>
+                        <span className="text-base font-black text-white">EGP {prices.yearly}</span>
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center mt-2 ${
+                          renewPlan === 'Yearly' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                        }`}>
+                          {renewPlan === 'Yearly' && <Check className="w-2 h-2 stroke-[3]" />}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Transfer Info */}
+                  <div className="p-4 rounded-2xl bg-background/60 border border-border/80 text-center space-y-3">
+                    <div>
+                      <span className="text-[9px] text-muted-foreground block uppercase font-bold tracking-wider">
+                        {isEn ? 'Transfer Amount' : 'المبلغ المطلوب تحويله'}
+                      </span>
+                      <span className="text-xl font-black text-primary">
+                        EGP {renewPlan === 'Monthly' ? prices.monthly : prices.yearly}
+                      </span>
+                    </div>
+
+                    <div className="border-t border-border/30 pt-2">
+                      <span className="text-[9px] text-muted-foreground block uppercase font-bold tracking-wider mb-1">
+                        {isEn ? 'Transfer Account / Number' : 'رقم التحويل للمحفظة وانستاباي'}
+                      </span>
+                      <span className="text-lg font-black text-white tracking-widest block bg-card border border-border py-1.5 rounded-xl">
+                        01110077531
+                      </span>
+                      <span className="text-[8px] text-yellow-500 block mt-1 leading-normal">
+                        {isEn 
+                          ? '* Both Instapay and Wallets transfer to this exact number.' 
+                          : '* التحويل لانستاباي والمحافظ الإلكترونية يتم على هذا الرقم مباشرة.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* File Upload */}
+                  <div>
+                    <label className={`block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 ${isEn ? 'text-left' : 'text-right'}`}>
+                      {isEn ? 'Upload Proof' : 'رفع إثبات الدفع'}
+                    </label>
+                    {screenshotPreview ? (
+                      <div className="relative rounded-2xl border border-border overflow-hidden h-40 bg-background flex items-center justify-center group">
+                        <img src={screenshotPreview} alt="Transfer Proof" className="max-h-full max-w-full object-contain" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScreenshotFile(null);
+                            setScreenshotPreview(null);
+                          }}
+                          className={`absolute top-2 ${isEn ? 'right-2' : 'left-2'} p-1.5 rounded-lg bg-black/70 border border-border hover:bg-red-500/20 hover:text-red-500 transition-all text-[10px] font-bold text-white cursor-pointer`}
+                        >
+                          {isEn ? 'Remove' : 'حذف'}
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border border-dashed border-border hover:border-primary/50 transition-all rounded-2xl h-36 cursor-pointer bg-background/20 group">
+                        <Upload size={24} className="text-muted-foreground group-hover:text-primary transition-all mb-1.5" />
+                        <span className="text-xs font-bold text-white">
+                          {isEn ? 'Choose Image' : 'اختر صورة الإيصال'}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground mt-0.5">
+                          JPEG, PNG, SVG up to 5MB
+                        </span>
+                        <input type="file" accept="image/*" onChange={handleRenewFileChange} className="hidden" />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Submit Action */}
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRenewal || !screenshotFile}
+                    className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:bg-primary/95 transition-all text-xs shadow-md disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <CreditCard size={14} />
+                    <span>
+                      {isSubmittingRenewal 
+                        ? (isEn ? 'Submitting...' : 'جاري الإرسال...') 
+                        : (isEn ? 'Submit & Confirm Payment' : 'إرسال وتأكيد عملية الدفع')}
+                    </span>
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

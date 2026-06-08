@@ -52,6 +52,7 @@ interface CoachSubscription {
   status: 'Active' | 'Expired' | 'Pending';
   startDate: string;
   expiryDate: string;
+  paymentScreenshot?: string;
 }
 
 interface AuditLog {
@@ -85,6 +86,7 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'reports'>('overview');
   const [coachesClients, setCoachesClients] = useState<Record<string, PlatformClient[]>>({});
   const [selectedCoachForModal, setSelectedCoachForModal] = useState<string | null>(null);
+  const [previewScreenshotUrl, setPreviewScreenshotUrl] = useState<string | null>(null);
   
   // Platform Configuration states
   const [monthlyPrice, setMonthlyPrice] = useState(49);
@@ -498,6 +500,91 @@ export default function AdminDashboardPage() {
     setIsGrantModalOpen(false);
   };
 
+  const handleApprovePayment = async (coach: CoachSubscription) => {
+    const start = new Date();
+    const expiry = new Date();
+    if (coach.planType === 'Yearly') {
+      expiry.setFullYear(start.getFullYear() + 1);
+    } else {
+      expiry.setMonth(start.getMonth() + 1);
+    }
+    const startDateStr = start.toISOString().split('T')[0];
+    const expiryDateStr = expiry.toISOString().split('T')[0];
+
+    const payload = {
+      status: 'Active' as const,
+      startDate: startDateStr,
+      expiryDate: expiryDateStr,
+      pricePaid: coach.pricePaid
+    };
+
+    try {
+      await api.put(`/admin/coaches/${coach.id}`, payload);
+      toast.success(`Activated Coach ${coach.name} successfully!`);
+      addAuditLog(`Activated Coach ${coach.name} (${coach.planType} Plan - EGP ${coach.pricePaid})`, 'success');
+      
+      // Reload coaches list from backend
+      const coachesRes = await api.get('/admin/coaches');
+      setCoaches(coachesRes.data);
+    } catch (err) {
+      console.error('Failed to approve payment in backend:', err);
+      // Fallback local update
+      const savedCoachesStr = localStorage.getItem('platformCoaches');
+      if (savedCoachesStr) {
+        const coachesList = JSON.parse(savedCoachesStr);
+        const updated = coachesList.map((c: any) => {
+          if (c.id === coach.id) {
+            return {
+              ...c,
+              status: 'Active',
+              startDate: startDateStr,
+              expiryDate: expiryDateStr
+            };
+          }
+          return c;
+        });
+        localStorage.setItem('platformCoaches', JSON.stringify(updated));
+        setCoaches(updated);
+      }
+      toast.success(`Activated Coach ${coach.name} locally (fallback)!`);
+    }
+  };
+
+  const handleRejectPayment = async (coach: CoachSubscription) => {
+    try {
+      await api.put(`/admin/coaches/${coach.id}`, {
+        status: 'Pending',
+        paymentScreenshot: ''
+      });
+      toast.success(`Payment rejected for Coach ${coach.name}. Screenshot cleared.`);
+      addAuditLog(`Rejected payment verification for Coach ${coach.name}`, 'warning');
+      
+      // Reload coaches list from backend
+      const coachesRes = await api.get('/admin/coaches');
+      setCoaches(coachesRes.data);
+    } catch (err) {
+      console.error('Failed to reject payment in backend:', err);
+      // Fallback local update
+      const savedCoachesStr = localStorage.getItem('platformCoaches');
+      if (savedCoachesStr) {
+        const coachesList = JSON.parse(savedCoachesStr);
+        const updated = coachesList.map((c: any) => {
+          if (c.id === coach.id) {
+            return {
+              ...c,
+              status: 'Pending',
+              paymentScreenshot: ''
+            };
+          }
+          return c;
+        });
+        localStorage.setItem('platformCoaches', JSON.stringify(updated));
+        setCoaches(updated);
+      }
+      toast.success(`Payment rejected locally (fallback).`);
+    }
+  };
+
   const handleExtendSubscription = async (coachId: string) => {
     let coachName = '';
     let plan = '';
@@ -549,6 +636,170 @@ export default function AdminDashboardPage() {
   const handleSendEmailAlert = (coachName: string, coachEmail: string) => {
     toast.success(`Renewal warning alert email sent to ${coachName} (${coachEmail})`);
     addAuditLog(`Renewal warning alert email sent to Coach ${coachName} (${coachEmail})`, 'warning');
+  };
+
+  const handleDeleteCoach = async (coachId: string) => {
+    const coach = coaches.find(c => c.id === coachId);
+    if (!coach) return;
+    
+    if (!window.confirm(`Are you sure you want to permanently delete coach ${coach.name}?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/admin/users/${coach.id}`);
+      toast.success(`Coach ${coach.name} deleted successfully!`);
+      addAuditLog(`Permanently deleted coach account for ${coach.name}`, 'warning');
+      
+      const updated = coaches.filter(c => c.id !== coachId);
+      setCoaches(updated);
+      localStorage.setItem('platformCoaches', JSON.stringify(updated));
+      
+      const updatedClients = { ...coachesClients };
+      delete updatedClients[coachId];
+      setCoachesClients(updatedClients);
+      localStorage.setItem('platformCoachesClients', JSON.stringify(updatedClients));
+    } catch (err) {
+      console.error('Failed to delete coach in backend:', err);
+      const updated = coaches.filter(c => c.id !== coachId);
+      setCoaches(updated);
+      localStorage.setItem('platformCoaches', JSON.stringify(updated));
+      toast.success(`Deleted Coach ${coach.name} locally (fallback)!`);
+    }
+  };
+
+  const handleToggleSuspendCoach = async (coachId: string) => {
+    const coach = coaches.find(c => c.id === coachId);
+    if (!coach) return;
+
+    const newStatus: 'Active' | 'Expired' = coach.status === 'Active' ? 'Expired' : 'Active';
+    const actionLabel = newStatus === 'Expired' ? 'suspended' : 'reactivated';
+
+    try {
+      await api.put(`/admin/coaches/${coach.id}`, { status: newStatus });
+      toast.success(`Coach ${coach.name} ${actionLabel} successfully!`);
+      addAuditLog(`Admin ${actionLabel} coach account for ${coach.name}`, 'info');
+
+      const updated = coaches.map(c => {
+        if (c.id === coachId) {
+          return { ...c, status: newStatus };
+        }
+        return c;
+      });
+      setCoaches(updated);
+      localStorage.setItem('platformCoaches', JSON.stringify(updated));
+    } catch (err) {
+      console.error('Failed to suspend/reactivate coach in backend:', err);
+      const updated = coaches.map(c => {
+        if (c.id === coachId) {
+          return { ...c, status: newStatus };
+        }
+        return c;
+      });
+      setCoaches(updated);
+      localStorage.setItem('platformCoaches', JSON.stringify(updated));
+      toast.success(`Coach ${coach.name} ${actionLabel} locally (fallback)!`);
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    let coachIdOfClient = '';
+    let clientName = '';
+    for (const [cid, clist] of Object.entries(coachesClients)) {
+      const match = clist.find(c => c.id === clientId);
+      if (match) {
+        coachIdOfClient = cid;
+        clientName = match.name;
+        break;
+      }
+    }
+
+    if (!clientId) return;
+    if (!window.confirm(`Are you sure you want to permanently delete trainee ${clientName}?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/admin/users/${clientId}`);
+    } catch (err) {
+      console.warn('Failed to delete client in backend DB:', err);
+    }
+
+    if (coachIdOfClient) {
+      const updatedList = coachesClients[coachIdOfClient].filter(c => c.id !== clientId);
+      const updatedCoachesClients = {
+        ...coachesClients,
+        [coachIdOfClient]: updatedList
+      };
+      setCoachesClients(updatedCoachesClients);
+      localStorage.setItem('platformCoachesClients', JSON.stringify(updatedCoachesClients));
+      
+      const coachClientsStr = localStorage.getItem('coachClients');
+      if (coachClientsStr) {
+        const coachClients = JSON.parse(coachClientsStr);
+        const updatedCoachClientsList = coachClients.filter((c: any) => c.id !== clientId);
+        localStorage.setItem('coachClients', JSON.stringify(updatedCoachClientsList));
+      }
+
+      toast.success(`Trainee ${clientName} deleted successfully!`);
+      addAuditLog(`Permanently deleted client account for ${clientName}`, 'warning');
+    }
+  };
+
+  const handleToggleSuspendClient = async (clientId: string) => {
+    let coachIdOfClient = '';
+    let clientName = '';
+    let currentStatus = 'Active';
+    for (const [cid, clist] of Object.entries(coachesClients)) {
+      const match = clist.find(c => c.id === clientId);
+      if (match) {
+        coachIdOfClient = cid;
+        clientName = match.name;
+        currentStatus = match.status;
+        break;
+      }
+    }
+
+    if (!clientId) return;
+
+    const newStatus = currentStatus === 'Active' ? 'Expired' : 'Active';
+    const actionLabel = newStatus === 'Expired' ? 'suspended' : 'reactivated';
+
+    try {
+      await api.put(`/admin/clients/${clientId}`, { status: newStatus });
+    } catch (err) {
+      console.warn('Failed to update client status in backend DB:', err);
+    }
+
+    if (coachIdOfClient) {
+      const updatedList = coachesClients[coachIdOfClient].map(c => {
+        if (c.id === clientId) {
+          return { ...c, status: newStatus as 'Active' | 'Expired' };
+        }
+        return c;
+      });
+      const updatedCoachesClients = {
+        ...coachesClients,
+        [coachIdOfClient]: updatedList
+      };
+      setCoachesClients(updatedCoachesClients);
+      localStorage.setItem('platformCoachesClients', JSON.stringify(updatedCoachesClients));
+
+      const coachClientsStr = localStorage.getItem('coachClients');
+      if (coachClientsStr) {
+        const coachClients = JSON.parse(coachClientsStr);
+        const updatedCoachClientsList = coachClients.map((c: any) => {
+          if (c.id === clientId) {
+            return { ...c, status: newStatus };
+          }
+          return c;
+        });
+        localStorage.setItem('coachClients', JSON.stringify(updatedCoachClientsList));
+      }
+
+      toast.success(`Trainee ${clientName} ${actionLabel} successfully!`);
+      addAuditLog(`Admin ${actionLabel} client account for ${clientName}`, 'info');
+    }
   };
 
   const handleAddClientToCoach = (e: React.FormEvent) => {
@@ -777,11 +1028,22 @@ export default function AdminDashboardPage() {
                             coach.status === 'Active' 
                               ? 'bg-green-500/10 text-green-500 border-green-500/20' 
                               : coach.status === 'Pending'
-                              ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                              ? coach.paymentScreenshot
+                                ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20 animate-pulse'
+                                : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                               : 'bg-red-500/10 text-red-500 border-red-500/20'
                           }`}>
-                            {coach.status}
+                            {coach.status === 'Pending' && coach.paymentScreenshot ? 'Pending Approval' : coach.status}
                           </span>
+                          {coach.paymentScreenshot && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScreenshotUrl(coach.paymentScreenshot || null)}
+                              className="block mt-1 text-[10px] text-primary hover:underline font-bold bg-transparent border-0 cursor-pointer text-left"
+                            >
+                              View Screenshot
+                            </button>
+                          )}
                         </td>
 
                         <td className="py-5 px-4 text-right">
@@ -802,16 +1064,33 @@ export default function AdminDashboardPage() {
                               </button>
                             )}
                             {coach.status === 'Pending' ? (
-                              <button
-                                onClick={() => {
-                                  setName(coach.name);
-                                  setEmail(coach.email);
-                                  setIsGrantModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] transition-all shadow"
-                              >
-                                Activate License
-                              </button>
+                              coach.paymentScreenshot ? (
+                                <>
+                                  <button
+                                    onClick={() => handleApprovePayment(coach)}
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-all shadow cursor-pointer"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectPayment(coach)}
+                                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] transition-all shadow cursor-pointer"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setName(coach.name);
+                                    setEmail(coach.email);
+                                    setIsGrantModalOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] transition-all shadow"
+                                >
+                                  Activate License
+                                </button>
+                              )
                             ) : (
                               <button
                                 onClick={() => handleExtendSubscription(coach.id)}
@@ -820,6 +1099,37 @@ export default function AdminDashboardPage() {
                                 Extend Plan
                               </button>
                             )}
+
+                            {/* Suspend / Reactivate Coach */}
+                            {coach.status === 'Active' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSuspendCoach(coach.id)}
+                                className="p-2 rounded-lg border border-border hover:bg-yellow-500/10 hover:border-yellow-500/20 hover:text-yellow-500 text-muted-foreground transition-all cursor-pointer"
+                                title="Suspend Coach / إيقاف الحساب"
+                              >
+                                <AlertTriangle size={14} />
+                              </button>
+                            ) : coach.status === 'Expired' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSuspendCoach(coach.id)}
+                                className="p-2 rounded-lg border border-border hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500 text-muted-foreground transition-all cursor-pointer"
+                                title="Reactivate Coach / إعادة تفعيل"
+                              >
+                                <CheckCircle size={14} />
+                              </button>
+                            ) : null}
+
+                            {/* Delete Coach */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCoach(coach.id)}
+                              className="p-2 rounded-lg border border-border hover:bg-rose-500/10 hover:border-rose-500/20 hover:text-rose-500 text-muted-foreground transition-all cursor-pointer"
+                              title="Delete Coach / حذف الحساب نهائياً"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1342,6 +1652,7 @@ export default function AdminDashboardPage() {
                     <th className="pb-4 uppercase tracking-wider px-4">Price Paid</th>
                     <th className="pb-4 uppercase tracking-wider px-4">Joined Month</th>
                     <th className="pb-4 uppercase tracking-wider px-4">Status</th>
+                    <th className="pb-4 uppercase tracking-wider px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -1363,7 +1674,7 @@ export default function AdminDashboardPage() {
                     );
                   }).length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={9} className="py-8 text-center text-muted-foreground">
                         No matching clients found in registry.
                       </td>
                     </tr>
@@ -1418,6 +1729,40 @@ export default function AdminDashboardPage() {
                             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${statusColor}`}>
                               {client.status}
                             </span>
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              {/* Suspend / Reactivate Client */}
+                              {client.status === 'Active' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSuspendClient(client.id)}
+                                  className="p-1.5 rounded-lg border border-border hover:bg-yellow-500/10 hover:border-yellow-500/20 hover:text-yellow-500 text-muted-foreground transition-all cursor-pointer"
+                                  title="Suspend Client / إيقاف الحساب"
+                                >
+                                  <AlertTriangle size={12} />
+                                </button>
+                              ) : client.status === 'Expired' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSuspendClient(client.id)}
+                                  className="p-1.5 rounded-lg border border-border hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500 text-muted-foreground transition-all cursor-pointer"
+                                  title="Reactivate Client / إعادة تفعيل"
+                                >
+                                  <CheckCircle size={12} />
+                                </button>
+                              ) : null}
+
+                              {/* Delete Client */}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteClient(client.id)}
+                                className="p-1.5 rounded-lg border border-border hover:bg-rose-500/10 hover:border-rose-500/20 hover:text-rose-500 text-muted-foreground transition-all cursor-pointer"
+                                title="Delete Client / حذف نهائياً"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1583,12 +1928,13 @@ export default function AdminDashboardPage() {
                       <th className="pb-4 uppercase tracking-wider px-4">Package Plan</th>
                       <th className="pb-4 uppercase tracking-wider px-4">Monthly Rate</th>
                       <th className="pb-4 uppercase tracking-wider px-4">Status</th>
+                      <th className="pb-4 uppercase tracking-wider px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {(!coachesClients[selectedCoachForModal] || coachesClients[selectedCoachForModal].length === 0) ? (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                        <td colSpan={7} className="py-8 text-center text-muted-foreground">
                           No trainees registered for this coach.
                         </td>
                       </tr>
@@ -1610,6 +1956,40 @@ export default function AdminDashboardPage() {
                                 {client.status}
                               </span>
                             </td>
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex items-center justify-end space-x-2">
+                                {/* Suspend / Reactivate Client */}
+                                {client.status === 'Active' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleSuspendClient(client.id)}
+                                    className="p-1.5 rounded-lg border border-border hover:bg-yellow-500/10 hover:border-yellow-500/20 hover:text-yellow-500 text-muted-foreground transition-all cursor-pointer"
+                                    title="Suspend Client / إيقاف الحساب"
+                                  >
+                                    <AlertTriangle size={12} />
+                                  </button>
+                                ) : client.status === 'Expired' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleSuspendClient(client.id)}
+                                    className="p-1.5 rounded-lg border border-border hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-500 text-muted-foreground transition-all cursor-pointer"
+                                    title="Reactivate Client / إعادة تفعيل"
+                                  >
+                                    <CheckCircle size={12} />
+                                  </button>
+                                ) : null}
+
+                                {/* Delete Client */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteClient(client.id)}
+                                  className="p-1.5 rounded-lg border border-border hover:bg-rose-500/10 hover:border-rose-500/20 hover:text-rose-500 text-muted-foreground transition-all cursor-pointer"
+                                  title="Delete Client / حذف نهائياً"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         );
                       })
@@ -1617,6 +1997,66 @@ export default function AdminDashboardPage() {
                   </tbody>
                 </table>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Screenshot Preview Modal */}
+      <AnimatePresence>
+        {previewScreenshotUrl && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-2xl bg-card border border-border rounded-3xl p-6 shadow-2xl overflow-hidden relative flex flex-col items-center max-h-[90vh]"
+            >
+              <div className="flex justify-between items-center w-full mb-4">
+                <h2 className="text-xl font-bold">Payment Receipt Preview</h2>
+                <button
+                  onClick={() => setPreviewScreenshotUrl(null)}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground text-xs font-bold rounded-xl hover:bg-secondary/80 transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-auto w-full bg-background/50 border border-border rounded-2xl flex items-center justify-center p-2">
+                <img
+                  src={previewScreenshotUrl}
+                  alt="Payment Receipt"
+                  className="max-h-[60vh] max-w-full object-contain rounded-lg"
+                />
+              </div>
+
+              {/* Find the coach corresponding to this screenshot to show Approve/Reject directly! */}
+              {(() => {
+                const coach = coaches.find(c => c.paymentScreenshot === previewScreenshotUrl);
+                if (!coach) return null;
+                return (
+                  <div className="flex gap-4 w-full mt-4">
+                    <button
+                      onClick={() => {
+                        handleApprovePayment(coach);
+                        setPreviewScreenshotUrl(null);
+                      }}
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow cursor-pointer transition-all"
+                    >
+                      Approve & Activate
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleRejectPayment(coach);
+                        setPreviewScreenshotUrl(null);
+                      }}
+                      className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow cursor-pointer transition-all"
+                    >
+                      Reject & Clear
+                    </button>
+                  </div>
+                );
+              })()}
             </motion.div>
           </div>
         )}

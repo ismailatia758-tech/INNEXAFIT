@@ -59,15 +59,6 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center space-x-4">
-          <Button 
-            variant="ghost" 
-            onClick={toggleLanguage}
-            className="text-muted-foreground hover:text-foreground flex items-center space-x-1.5 px-3 py-2 rounded-xl"
-            title={language === 'en' ? 'Switch to Arabic' : 'تغيير إلى الإنجليزية'}
-          >
-            <Globe size={18} />
-            <span className="text-sm font-bold">{language === 'en' ? 'العربية' : 'EN'}</span>
-          </Button>
           <Link href="/login">
             <Button variant="ghost">{t.login}</Button>
           </Link>
@@ -104,14 +95,6 @@ export default function Navbar() {
               ))}
               <hr className="border-border" />
               <div className="flex flex-col space-y-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => { toggleLanguage(); setIsOpen(false); }}
-                  className="w-full justify-center flex items-center"
-                >
-                  <Globe size={18} className="mr-2" />
-                  {language === 'en' ? 'العربية' : 'English'}
-                </Button>
                 <Link href="/login" className="w-full">
                   <Button variant="outline" className="w-full">{t.login}</Button>
                 </Link>

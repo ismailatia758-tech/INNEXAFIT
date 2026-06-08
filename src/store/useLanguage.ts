@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 interface LanguageState {
   language: 'ar' | 'en';
@@ -8,14 +7,9 @@ interface LanguageState {
 }
 
 export const useLanguage = create<LanguageState>()(
-  persist(
-    (set) => ({
-      language: 'en',
-      setLanguage: (lang) => set({ language: lang }),
-      toggleLanguage: () => set((state) => ({ language: state.language === 'en' ? 'ar' : 'en' })),
-    }),
-    {
-      name: 'language-storage',
-    }
-  )
+  () => ({
+    language: 'en',
+    setLanguage: () => {},
+    toggleLanguage: () => {},
+  })
 );
