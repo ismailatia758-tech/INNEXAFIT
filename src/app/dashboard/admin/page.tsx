@@ -46,9 +46,9 @@ interface CoachSubscription {
   id: string;
   name: string;
   email: string;
-  planType: 'Monthly' | 'Yearly';
+  planType: 'Monthly' | 'Yearly' | 'Free' | 'Pending';
   pricePaid: number;
-  status: 'Active' | 'Expired';
+  status: 'Active' | 'Expired' | 'Pending';
   startDate: string;
   expiryDate: string;
 }
@@ -363,24 +363,57 @@ export default function AdminDashboardPage() {
       expiry.setFullYear(start.getFullYear() + 1);
     }
 
-    const newCoach: CoachSubscription = {
-      id: 'c-' + Math.random().toString(36).substr(2, 9),
-      name: name.trim(),
-      email: email.trim(),
-      planType,
-      pricePaid: price,
-      status: 'Active',
-      startDate,
-      expiryDate: expiry.toISOString().split('T')[0]
-    };
+    const existingIndex = coaches.findIndex(c => c.email.toLowerCase() === email.trim().toLowerCase());
 
-    const updated = [...coaches, newCoach];
-    setCoaches(updated);
-    localStorage.setItem('platformCoaches', JSON.stringify(updated));
+    if (existingIndex > -1) {
+      // Update existing pending/inactive coach
+      const updated = [...coaches];
+      const coachId = updated[existingIndex].id;
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        name: name.trim(),
+        planType,
+        pricePaid: price,
+        status: 'Active' as const,
+        startDate,
+        expiryDate: expiry.toISOString().split('T')[0]
+      };
+      setCoaches(updated);
+      localStorage.setItem('platformCoaches', JSON.stringify(updated));
 
-    const updatedClients = { ...coachesClients, [newCoach.id]: [] };
-    setCoachesClients(updatedClients);
-    localStorage.setItem('platformCoachesClients', JSON.stringify(updatedClients));
+      // Make sure they have a clients record
+      if (!coachesClients[coachId]) {
+        const updatedClients = { ...coachesClients, [coachId]: [] };
+        setCoachesClients(updatedClients);
+        localStorage.setItem('platformCoachesClients', JSON.stringify(updatedClients));
+      }
+
+      toast.success(`Coach ${name.trim()} activated and license updated successfully!`);
+      addAuditLog(`Activated Coach ${name.trim()} (${planType} Plan - EGP ${price})`, 'success');
+    } else {
+      // Create new coach
+      const newCoach: CoachSubscription = {
+        id: 'c-' + Math.random().toString(36).substr(2, 9),
+        name: name.trim(),
+        email: email.trim(),
+        planType,
+        pricePaid: price,
+        status: 'Active' as const,
+        startDate,
+        expiryDate: expiry.toISOString().split('T')[0]
+      };
+
+      const updated = [...coaches, newCoach];
+      setCoaches(updated);
+      localStorage.setItem('platformCoaches', JSON.stringify(updated));
+
+      const updatedClients = { ...coachesClients, [newCoach.id]: [] };
+      setCoachesClients(updatedClients);
+      localStorage.setItem('platformCoachesClients', JSON.stringify(updatedClients));
+
+      toast.success(`Access granted to ${newCoach.name} successfully!`);
+      addAuditLog(`Granted license access to Coach ${newCoach.name} (${newCoach.planType} Plan - EGP ${newCoach.pricePaid})`, 'success');
+    }
 
     // Reset Form
     setName('');
@@ -388,9 +421,6 @@ export default function AdminDashboardPage() {
     setPlanType('Monthly');
     setPrice(monthlyPrice);
     setIsGrantModalOpen(false);
-
-    toast.success(`Access granted to ${newCoach.name} successfully!`);
-    addAuditLog(`Granted license access to Coach ${newCoach.name} (${newCoach.planType} Plan - EGP ${newCoach.pricePaid})`, 'success');
   };
 
   const handleExtendSubscription = (coachId: string) => {
@@ -653,8 +683,10 @@ export default function AdminDashboardPage() {
 
                         <td className="py-5 px-4">
                           <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                            isActive 
+                            coach.status === 'Active' 
                               ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                              : coach.status === 'Pending'
+                              ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                               : 'bg-red-500/10 text-red-500 border-red-500/20'
                           }`}>
                             {coach.status}
@@ -678,12 +710,25 @@ export default function AdminDashboardPage() {
                                 <Mail size={14} />
                               </button>
                             )}
-                            <button
-                              onClick={() => handleExtendSubscription(coach.id)}
-                              className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-brand-purple hover:text-white transition-all font-bold text-[10px]"
-                            >
-                              Extend Plan
-                            </button>
+                            {coach.status === 'Pending' ? (
+                              <button
+                                onClick={() => {
+                                  setName(coach.name);
+                                  setEmail(coach.email);
+                                  setIsGrantModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] transition-all shadow"
+                              >
+                                Activate License
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleExtendSubscription(coach.id)}
+                                className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-brand-purple hover:text-white transition-all font-bold text-[10px]"
+                              >
+                                Extend Plan
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
