@@ -16,6 +16,7 @@ import {
   Plus
 } from 'lucide-react';
 import Link from 'next/link';
+import api from '@/lib/api';
 
 interface Message {
   id: string;
@@ -109,13 +110,102 @@ const initialTrainees: Trainee[] = [
 ];
 
 export default function ChatPage() {
-  const [traineesList, setTraineesList] = useState<Trainee[]>(initialTrainees);
-  const [activeTraineeId, setActiveTraineeId] = useState('1');
+  const [traineesList, setTraineesList] = useState<Trainee[]>([]);
+  const [activeTraineeId, setActiveTraineeId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showTraineeDetails, setShowTraineeDetails] = useState(true);
 
-  const activeTrainee = traineesList.find(t => t.id === activeTraineeId) || traineesList[0];
+  // Load trainees and set active
+  const fetchTrainees = async () => {
+    try {
+      const res = await api.get('/coach/clients');
+      const formatted: Trainee[] = await Promise.all(res.data.map(async (c: any) => {
+        let messages: Message[] = [];
+        try {
+          const msgRes = await api.get(`/messages/${c.id}`);
+          messages = msgRes.data.map((m: any) => ({
+            id: m.id,
+            sender: m.sender === 'client' ? 'trainee' : 'coach',
+            text: m.text,
+            time: m.timestamp
+          }));
+        } catch (err) {
+          console.error(`Failed to load messages for client ${c.id}`, err);
+        }
+
+        return {
+          id: c.id,
+          name: c.name,
+          avatar: c.name.charAt(0).toUpperCase(),
+          goal: c.planType || 'General fitness',
+          currentWeight: 'N/A',
+          height: 'N/A',
+          targetWeight: 'N/A',
+          bodyFat: 'N/A',
+          planStatus: c.status || 'Active',
+          lastCheckIn: c.startDate || 'N/A',
+          messages
+        };
+      }));
+
+      setTraineesList(formatted);
+      if (formatted.length > 0 && !activeTraineeId) {
+        setActiveTraineeId(formatted[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to fetch trainees from backend, loading fallback', err);
+      setTraineesList(initialTrainees);
+      if (!activeTraineeId) setActiveTraineeId('1');
+    }
+  };
+
+  useEffect(() => {
+    fetchTrainees();
+  }, []);
+
+  // Poll for messages of active trainee periodically
+  useEffect(() => {
+    if (!activeTraineeId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const msgRes = await api.get(`/messages/${activeTraineeId}`);
+        const newMsgs = msgRes.data.map((m: any) => ({
+          id: m.id,
+          sender: m.sender === 'client' ? 'trainee' : 'coach',
+          text: m.text,
+          time: m.timestamp
+        }));
+
+        setTraineesList(prev => prev.map(t => {
+          if (t.id === activeTraineeId) {
+            return { ...t, messages: newMsgs };
+          }
+          return t;
+        }));
+      } catch (err) {
+        console.error('Failed to reload messages', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [activeTraineeId]);
+
+  const activeTrainee = traineesList.find(t => t.id === activeTraineeId) || traineesList[0] || {
+    id: '',
+    name: 'No Trainee',
+    avatar: '?',
+    goal: '',
+    currentWeight: '',
+    height: '',
+    targetWeight: '',
+    bodyFat: '',
+    planStatus: '',
+    lastCheckIn: '',
+    messages: []
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -124,30 +214,47 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [activeTrainee.messages]);
+  }, [activeTrainee?.messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || !activeTraineeId) return;
 
-    const newMessage: Message = {
-      id: String(activeTrainee.messages.length + 1),
-      sender: 'coach',
-      text: inputText.trim(),
-      time: 'Just now'
-    };
-
-    setTraineesList(prev => prev.map(t => {
-      if (t.id === activeTraineeId) {
-        return {
-          ...t,
-          messages: [...t.messages, newMessage]
-        };
-      }
-      return t;
-    }));
-
+    const currentText = inputText.trim();
     setInputText('');
+
+    try {
+      await api.post('/messages', { receiverId: activeTraineeId, text: currentText });
+      const msgRes = await api.get(`/messages/${activeTraineeId}`);
+      const newMsgs = msgRes.data.map((m: any) => ({
+        id: m.id,
+        sender: m.sender === 'client' ? 'trainee' : 'coach',
+        text: m.text,
+        time: m.timestamp
+      }));
+
+      setTraineesList(prev => prev.map(t => {
+        if (t.id === activeTraineeId) {
+          return { ...t, messages: newMsgs };
+        }
+        return t;
+      }));
+    } catch (err) {
+      console.error('Failed to send message to backend, using local fallback', err);
+      const newMessage: Message = {
+        id: String(activeTrainee.messages.length + 1),
+        sender: 'coach',
+        text: currentText,
+        time: 'Just now'
+      };
+
+      setTraineesList(prev => prev.map(t => {
+        if (t.id === activeTraineeId) {
+          return { ...t, messages: [...t.messages, newMessage] };
+        }
+        return t;
+      }));
+    }
   };
 
   const filteredTrainees = traineesList.filter(t => 

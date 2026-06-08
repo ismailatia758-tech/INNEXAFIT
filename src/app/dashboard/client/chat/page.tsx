@@ -12,6 +12,7 @@ import {
   CheckCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 interface Message {
   id: string;
@@ -33,16 +34,30 @@ export default function ClientChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load chat from localStorage or set defaults
+  const [coachId, setCoachId] = useState<string | null>(null);
+
+  // Load chat from API or fallback to localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('clientCoachMessages');
-    if (saved) {
-      setMessages(JSON.parse(saved));
-    } else {
-      const defaults: Message[] = [];
-      setMessages(defaults);
-      localStorage.setItem('clientCoachMessages', JSON.stringify(defaults));
-    }
+    const initChat = async () => {
+      try {
+        const coachRes = await api.get('/client/coach');
+        const coach = coachRes.data;
+        setCoachId(coach.id);
+
+        const msgRes = await api.get(`/messages/${coach.id}`);
+        setMessages(msgRes.data);
+      } catch (err) {
+        console.error('Failed to initialize chat from backend, loading fallback', err);
+        const saved = localStorage.getItem('clientCoachMessages');
+        if (saved) {
+          setMessages(JSON.parse(saved));
+        } else {
+          setMessages([]);
+        }
+      }
+    };
+
+    initChat();
   }, []);
 
   // Scroll to bottom on new message
@@ -50,42 +65,37 @@ export default function ClientChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
+
+    const currentInputValue = inputValue.trim();
+    setInputValue('');
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = {
       id: 'm-' + Math.random().toString(36).substr(2, 9),
       sender: 'client',
-      text: inputValue.trim(),
+      text: currentInputValue,
       timestamp: timeStr
     };
 
-    const updated = [...messages, userMsg];
-    setMessages(updated);
-    localStorage.setItem('clientCoachMessages', JSON.stringify(updated));
-    setInputValue('');
-
-    // Trigger mock coach reply after 1.5 seconds
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      const randomReply = mockCoachReplies[Math.floor(Math.random() * mockCoachReplies.length)];
-      const coachMsg: Message = {
-        id: 'm-' + Math.random().toString(36).substr(2, 9),
-        sender: 'coach',
-        text: randomReply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      
-      const finalMsgs = [...updated, coachMsg];
-      setMessages(finalMsgs);
-      localStorage.setItem('clientCoachMessages', JSON.stringify(finalMsgs));
-      
-      // Send notification badge alert to user
-      toast('Coach sent a new message!', { icon: '💬' });
-    }, 1500);
+    if (coachId) {
+      try {
+        await api.post('/messages', { receiverId: coachId, text: currentInputValue });
+        const msgRes = await api.get(`/messages/${coachId}`);
+        setMessages(msgRes.data);
+      } catch (err) {
+        console.error('Failed to send message to backend, using local fallback', err);
+        const updated = [...messages, userMsg];
+        setMessages(updated);
+        localStorage.setItem('clientCoachMessages', JSON.stringify(updated));
+      }
+    } else {
+      const updated = [...messages, userMsg];
+      setMessages(updated);
+      localStorage.setItem('clientCoachMessages', JSON.stringify(updated));
+    }
   };
 
   return (

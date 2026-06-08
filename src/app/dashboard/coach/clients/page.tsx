@@ -126,36 +126,60 @@ export default function ClientsPage() {
   };
 
   // Load packages and clients
-  const fetchTraineeData = () => {
+  const fetchTraineeData = async () => {
     setLoading(true);
     
-    // Load packages from localStorage
-    const savedPackages = localStorage.getItem('subscriptionPackages');
-    const pkgs = savedPackages ? JSON.parse(savedPackages) : [];
-    setAvailablePackages(pkgs);
-    if (pkgs.length > 0) {
-      setSelectedPackageId(pkgs[0].id);
-      recalculateDates(pkgs[0]);
+    // Load packages from backend
+    try {
+      const pkgsRes = await api.get('/coach/packages');
+      setAvailablePackages(pkgsRes.data);
+      if (pkgsRes.data.length > 0) {
+        setSelectedPackageId(pkgsRes.data[0].id);
+        recalculateDates(pkgsRes.data[0]);
+      }
+    } catch (err) {
+      console.error('Failed to load packages from backend', err);
+      const savedPackages = localStorage.getItem('subscriptionPackages');
+      const pkgs = savedPackages ? JSON.parse(savedPackages) : [];
+      setAvailablePackages(pkgs);
+      if (pkgs.length > 0) {
+        setSelectedPackageId(pkgs[0].id);
+        recalculateDates(pkgs[0]);
+      }
     }
 
-    // Load clients from localStorage or seed defaults
-    const savedClients = localStorage.getItem('coachClients');
-    let clientList: Client[] = [];
-    
-    if (savedClients) {
-      clientList = JSON.parse(savedClients);
-    } else {
-      clientList = defaultMockClients;
+    // Load clients from backend
+    try {
+      const clientsRes = await api.get('/coach/clients');
+      const evaluatedClients = clientsRes.data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone || '+201000000000',
+        packageName: c.planType || 'Free',
+        pricePaid: c.pricePaid || 0,
+        status: evaluateStatus(c.status, c.expiryDate),
+        expiryDate: c.expiryDate || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+        startDate: c.startDate || new Date().toISOString().split('T')[0],
+        gender: c.gender || 'Male',
+        birthDate: c.birthDate || '1995-01-01'
+      }));
+      setClients(evaluatedClients);
+    } catch (err) {
+      console.error('Failed to load clients from backend', err);
+      const savedClients = localStorage.getItem('coachClients');
+      let clientList: Client[] = [];
+      if (savedClients) {
+        clientList = JSON.parse(savedClients);
+      } else {
+        clientList = defaultMockClients;
+      }
+      const evaluatedClients = clientList.map(c => ({
+        ...c,
+        status: evaluateStatus(c.status, c.expiryDate)
+      }));
+      setClients(evaluatedClients);
     }
-
-    // Auto-update status to Expired based on date before showing
-    const evaluatedClients = clientList.map(c => ({
-      ...c,
-      status: evaluateStatus(c.status, c.expiryDate)
-    }));
-
-    setClients(evaluatedClients);
-    localStorage.setItem('coachClients', JSON.stringify(evaluatedClients));
     setLoading(false);
   };
 
@@ -193,7 +217,7 @@ export default function ClientsPage() {
     }
   };
 
-  const handleSearchClient = (e: React.FormEvent) => {
+  const handleSearchClient = async (e: React.FormEvent) => {
     e.preventDefault();
     setSearchError(null);
     setSearchedClient(null);
@@ -201,50 +225,62 @@ export default function ClientsPage() {
     const cleanQuery = searchQueryAdd.trim().toLowerCase();
     if (!cleanQuery) return;
 
-    // Get mockUsers from localStorage
-    const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-    
-    // Default mock client
-    const defaultClientUser = {
-      id: 'mock-client-id',
-      email: 'client@innexafit.com',
-      role: 'CLIENT',
-      name: 'John Doe',
-      username: 'client@innexafit.com',
-      phone: '+20 100 111 2222',
-      gender: 'Male',
-      birthDate: '1998-05-15'
-    };
+    try {
+      const searchRes = await api.get(`/coach/search-client?query=${encodeURIComponent(cleanQuery)}`);
+      const found = searchRes.data;
 
-    const clientAccounts = [
-      defaultClientUser,
-      ...mockUsers.map((mu: any) => mu.user).filter((u: any) => u && u.role === 'CLIENT')
-    ];
+      // Check if already registered under this coach
+      const alreadyAdded = clients.some(c => c.email.toLowerCase() === found.email.toLowerCase());
+      if (alreadyAdded) {
+        setSearchError('This client is already registered under your account.');
+        return;
+      }
 
-    const found = clientAccounts.find((u: any) => {
-      const emailMatch = u.email?.toLowerCase() === cleanQuery;
-      const phoneMatch = u.phone?.replace(/[\s\-\+]/g, '') === cleanQuery.replace(/[\s\-\+]/g, '');
-      const usernameMatch = u.username?.toLowerCase() === cleanQuery || 
-                            u.username?.split('@')[0].toLowerCase() === cleanQuery;
-      return emailMatch || phoneMatch || usernameMatch;
-    });
+      setSearchedClient(found);
+    } catch (err: any) {
+      console.error('Failed to search client on backend, falling back to local list', err);
+      // Local fallback
+      const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+      const defaultClientUser = {
+        id: 'mock-client-id',
+        email: 'client@innexafit.com',
+        role: 'CLIENT',
+        name: 'John Doe',
+        username: 'client@innexafit.com',
+        phone: '+20 100 111 2222',
+        gender: 'Male',
+        birthDate: '1998-05-15'
+      };
 
-    if (!found) {
-      setSearchError('No registered client account found with this username, email, or phone number.');
-      return;
+      const clientAccounts = [
+        defaultClientUser,
+        ...mockUsers.map((mu: any) => mu.user).filter((u: any) => u && u.role === 'CLIENT')
+      ];
+
+      const found = clientAccounts.find((u: any) => {
+        const emailMatch = u.email?.toLowerCase() === cleanQuery;
+        const phoneMatch = u.phone?.replace(/[\s\-\+]/g, '') === cleanQuery.replace(/[\s\-\+]/g, '');
+        const usernameMatch = u.username?.toLowerCase() === cleanQuery || 
+                              u.username?.split('@')[0].toLowerCase() === cleanQuery;
+        return emailMatch || phoneMatch || usernameMatch;
+      });
+
+      if (!found) {
+        setSearchError('No registered client account found with this username, email, or phone number.');
+        return;
+      }
+
+      const alreadyAdded = clients.some(c => c.email.toLowerCase() === found.email.toLowerCase());
+      if (alreadyAdded) {
+        setSearchError('This client is already registered under your account.');
+        return;
+      }
+
+      setSearchedClient(found);
     }
-
-    // Check if already registered under this coach
-    const alreadyAdded = clients.some(c => c.email.toLowerCase() === found.email.toLowerCase());
-    if (alreadyAdded) {
-      setSearchError('This client is already registered under your account.');
-      return;
-    }
-
-    setSearchedClient(found);
   };
 
-  const handleAddClient = (e: React.FormEvent) => {
+  const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!searchedClient || !selectedPackageId) {
@@ -273,32 +309,59 @@ export default function ClientsPage() {
       return age;
     };
 
-    const newClient: Client = {
-      id: searchedClient.id || 'cli-' + Math.random().toString(36).substr(2, 9),
+    const payload = {
       name: searchedClient.name,
       email: searchedClient.email,
-      packageName: pkg.name,
-      status: 'Active',
-      maxDevices: calcDeviceLimit,
-      activeDevices: 0,
-      startDate: calcStartDate,
-      expiryDate: calcExpiryDate,
-      username: searchedClient.username || searchedClient.name.toLowerCase().replace(/\s+/g, ''),
-      phone: searchedClient.phone || '+20 123 456 789',
+      phone: searchedClient.phone || '+201000000000',
       gender: searchedClient.gender || 'Male',
-      age: calculateAge(searchedClient.birthDate)
+      birthDate: searchedClient.birthDate || '1995-01-01',
+      packageName: pkg.name,
+      pricePaid: pkg.price,
+      status: 'Active'
     };
 
-    const updated = [...clients, newClient];
-    setClients(updated);
-    localStorage.setItem('coachClients', JSON.stringify(updated));
+    try {
+      await api.post('/coach/clients', payload);
+      toast.success('Client registered with ' + pkg.name + ' successfully!');
+      
+      // Reload trainees list
+      fetchTraineeData();
 
-    // Reset Search/Add Form
-    setSearchQueryAdd('');
-    setSearchedClient(null);
-    setSearchError(null);
-    setIsAddModalOpen(false);
-    toast.success('Client registered with ' + pkg.name + ' successfully!');
+      // Reset Search/Add Form
+      setSearchQueryAdd('');
+      setSearchedClient(null);
+      setSearchError(null);
+      setIsAddModalOpen(false);
+    } catch (err) {
+      console.error('Failed to register client to backend, using local fallback', err);
+      // Local fallback
+      const newClient: Client = {
+        id: searchedClient.id || 'cli-' + Math.random().toString(36).substr(2, 9),
+        name: searchedClient.name,
+        email: searchedClient.email,
+        packageName: pkg.name,
+        status: 'Active',
+        maxDevices: calcDeviceLimit,
+        activeDevices: 0,
+        startDate: calcStartDate,
+        expiryDate: calcExpiryDate,
+        username: searchedClient.username || searchedClient.name.toLowerCase().replace(/\s+/g, ''),
+        phone: searchedClient.phone || '+20 123 456 789',
+        gender: searchedClient.gender || 'Male',
+        age: calculateAge(searchedClient.birthDate)
+      };
+
+      const updated = [...clients, newClient];
+      setClients(updated);
+      localStorage.setItem('coachClients', JSON.stringify(updated));
+
+      // Reset Search/Add Form
+      setSearchQueryAdd('');
+      setSearchedClient(null);
+      setSearchError(null);
+      setIsAddModalOpen(false);
+      toast.success('Client registered with ' + pkg.name + ' successfully!');
+    }
   };
 
   // Toggle Pause/Resume

@@ -41,6 +41,7 @@ import {
   Cell
 } from 'recharts';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 interface CoachSubscription {
   id: string;
@@ -242,16 +243,40 @@ export default function AdminDashboardPage() {
     ]);
   };
 
-  // Load config & data from localStorage
+  // Load config & data from localStorage and API
   useEffect(() => {
-    // 1. Coaches
-    const savedCoaches = localStorage.getItem('platformCoaches');
-    if (savedCoaches) {
-      setCoaches(JSON.parse(savedCoaches));
-    } else {
-      setCoaches(defaultCoaches);
-      localStorage.setItem('platformCoaches', JSON.stringify(defaultCoaches));
-    }
+    const fetchBackendData = async () => {
+      try {
+        const coachesRes = await api.get('/admin/coaches');
+        setCoaches(coachesRes.data);
+      } catch (err) {
+        console.error('Failed to load coaches from backend, falling back to localStorage', err);
+        const savedCoaches = localStorage.getItem('platformCoaches');
+        if (savedCoaches) {
+          setCoaches(JSON.parse(savedCoaches));
+        } else {
+          setCoaches([]);
+          localStorage.setItem('platformCoaches', JSON.stringify([]));
+        }
+      }
+
+      try {
+        const logsRes = await api.get('/admin/logs');
+        setAuditLogs(logsRes.data);
+      } catch (err) {
+        console.error('Failed to load logs from backend, falling back to localStorage', err);
+        const savedLogs = localStorage.getItem('platformAuditLogs');
+        if (savedLogs) {
+          setAuditLogs(JSON.parse(savedLogs));
+        } else {
+          const defaultLogs: AuditLog[] = [];
+          setAuditLogs(defaultLogs);
+          localStorage.setItem('platformAuditLogs', JSON.stringify(defaultLogs));
+        }
+      }
+    };
+
+    fetchBackendData();
 
     // 2. Coaches Clients Directory
     const savedCoachesClients = localStorage.getItem('platformCoachesClients');
@@ -274,30 +299,28 @@ export default function AdminDashboardPage() {
       const defaultConfig = { monthlyPrice: 49, yearlyPrice: 399, isMaintenanceMode: false, allowRegistrations: true };
       localStorage.setItem('platformConfig', JSON.stringify(defaultConfig));
     }
-
-    // 4. Platform Audit Logs
-    const savedLogs = localStorage.getItem('platformAuditLogs');
-    if (savedLogs) {
-      setAuditLogs(JSON.parse(savedLogs));
-    } else {
-      const defaultLogs: AuditLog[] = [];
-      setAuditLogs(defaultLogs);
-      localStorage.setItem('platformAuditLogs', JSON.stringify(defaultLogs));
-    }
   }, []);
 
-  const addAuditLog = (action: string, type: 'success' | 'warning' | 'info' | 'system') => {
+  const addAuditLog = async (action: string, type: 'success' | 'warning' | 'info' | 'system') => {
     const newLog: AuditLog = {
       id: 'log-' + Math.random().toString(36).substr(2, 9),
       action,
       timestamp: new Date().toISOString(),
       type
     };
-    const savedLogs = localStorage.getItem('platformAuditLogs');
-    const logs = savedLogs ? JSON.parse(savedLogs) : [];
-    const updated = [newLog, ...logs].slice(0, 50); // limit to 50 logs
-    setAuditLogs(updated);
-    localStorage.setItem('platformAuditLogs', JSON.stringify(updated));
+
+    try {
+      await api.post('/admin/logs', { action, type });
+      const logsRes = await api.get('/admin/logs');
+      setAuditLogs(logsRes.data);
+    } catch (err) {
+      console.error('Failed to save log to backend', err);
+      const savedLogs = localStorage.getItem('platformAuditLogs');
+      const logs = savedLogs ? JSON.parse(savedLogs) : [];
+      const updated = [newLog, ...logs].slice(0, 50);
+      setAuditLogs(updated);
+      localStorage.setItem('platformAuditLogs', JSON.stringify(updated));
+    }
   };
 
   const updateConfig = (updates: Partial<{ monthlyPrice: number; yearlyPrice: number; isMaintenanceMode: boolean; allowRegistrations: boolean }>) => {
@@ -347,7 +370,7 @@ export default function AdminDashboardPage() {
     setIsGrantModalOpen(true);
   };
 
-  const handleGrantAccess = (e: React.FormEvent) => {
+  const handleGrantAccess = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) {
       toast.error('Please fill in all fields');
@@ -367,10 +390,8 @@ export default function AdminDashboardPage() {
 
     if (existingIndex > -1) {
       // Update existing pending/inactive coach
-      const updated = [...coaches];
-      const coachId = updated[existingIndex].id;
-      updated[existingIndex] = {
-        ...updated[existingIndex],
+      const coachId = coaches[existingIndex].id;
+      const payload = {
         name: name.trim(),
         planType,
         pricePaid: price,
@@ -378,41 +399,95 @@ export default function AdminDashboardPage() {
         startDate,
         expiryDate: expiry.toISOString().split('T')[0]
       };
-      setCoaches(updated);
-      localStorage.setItem('platformCoaches', JSON.stringify(updated));
 
-      // Make sure they have a clients record
-      if (!coachesClients[coachId]) {
-        const updatedClients = { ...coachesClients, [coachId]: [] };
+      try {
+        await api.put(`/admin/coaches/${coachId}`, payload);
+        toast.success(`Coach ${name.trim()} activated and license updated successfully!`);
+        addAuditLog(`Activated Coach ${name.trim()} (${planType} Plan - EGP ${price})`, 'success');
+        
+        // Reload coaches
+        const coachesRes = await api.get('/admin/coaches');
+        setCoaches(coachesRes.data);
+      } catch (err) {
+        console.error('Failed to update coach in backend, updating locally', err);
+        const updated = [...coaches];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          name: name.trim(),
+          planType,
+          pricePaid: price,
+          status: 'Active' as const,
+          startDate,
+          expiryDate: expiry.toISOString().split('T')[0]
+        };
+        setCoaches(updated);
+        localStorage.setItem('platformCoaches', JSON.stringify(updated));
+        
+        // Make sure they have a clients record
+        if (!coachesClients[coachId]) {
+          const updatedClients = { ...coachesClients, [coachId]: [] };
+          setCoachesClients(updatedClients);
+          localStorage.setItem('platformCoachesClients', JSON.stringify(updatedClients));
+        }
+        
+        toast.success(`Coach ${name.trim()} activated locally (fallback)!`);
+        addAuditLog(`Activated Coach ${name.trim()} (${planType} Plan - EGP ${price})`, 'success');
+      }
+    } else {
+      // Register coach first via Auth Register
+      try {
+        const registerPayload = {
+          name: name.trim(),
+          email: email.trim(),
+          password: 'Password123!', // default password for admin created coach
+          role: 'COACH',
+          username: email.trim().split('@')[0] + '@innexafit.com',
+          phone: '+201000000000',
+          gender: 'Male',
+          birthDate: '1995-01-01'
+        };
+        const regRes = await api.post('/auth/register', registerPayload);
+        const newCoachUser = regRes.data.user;
+
+        // Now activate them
+        await api.put(`/admin/coaches/${newCoachUser.id}`, {
+          planType,
+          pricePaid: price,
+          status: 'Active',
+          startDate,
+          expiryDate: expiry.toISOString().split('T')[0]
+        });
+
+        toast.success(`Access granted to ${name.trim()} successfully!`);
+        addAuditLog(`Granted license access to Coach ${name.trim()} (${planType} Plan - EGP ${price})`, 'success');
+
+        const coachesRes = await api.get('/admin/coaches');
+        setCoaches(coachesRes.data);
+      } catch (err) {
+        console.error('Failed to register/create coach in backend, using local fallback', err);
+        // Create new coach
+        const newCoach: CoachSubscription = {
+          id: 'c-' + Math.random().toString(36).substr(2, 9),
+          name: name.trim(),
+          email: email.trim(),
+          planType,
+          pricePaid: price,
+          status: 'Active' as const,
+          startDate,
+          expiryDate: expiry.toISOString().split('T')[0]
+        };
+
+        const updated = [...coaches, newCoach];
+        setCoaches(updated);
+        localStorage.setItem('platformCoaches', JSON.stringify(updated));
+
+        const updatedClients = { ...coachesClients, [newCoach.id]: [] };
         setCoachesClients(updatedClients);
         localStorage.setItem('platformCoachesClients', JSON.stringify(updatedClients));
+
+        toast.success(`Access granted to ${newCoach.name} locally (fallback)!`);
+        addAuditLog(`Granted license access to Coach ${newCoach.name} (${newCoach.planType} Plan - EGP ${newCoach.pricePaid})`, 'success');
       }
-
-      toast.success(`Coach ${name.trim()} activated and license updated successfully!`);
-      addAuditLog(`Activated Coach ${name.trim()} (${planType} Plan - EGP ${price})`, 'success');
-    } else {
-      // Create new coach
-      const newCoach: CoachSubscription = {
-        id: 'c-' + Math.random().toString(36).substr(2, 9),
-        name: name.trim(),
-        email: email.trim(),
-        planType,
-        pricePaid: price,
-        status: 'Active' as const,
-        startDate,
-        expiryDate: expiry.toISOString().split('T')[0]
-      };
-
-      const updated = [...coaches, newCoach];
-      setCoaches(updated);
-      localStorage.setItem('platformCoaches', JSON.stringify(updated));
-
-      const updatedClients = { ...coachesClients, [newCoach.id]: [] };
-      setCoachesClients(updatedClients);
-      localStorage.setItem('platformCoachesClients', JSON.stringify(updatedClients));
-
-      toast.success(`Access granted to ${newCoach.name} successfully!`);
-      addAuditLog(`Granted license access to Coach ${newCoach.name} (${newCoach.planType} Plan - EGP ${newCoach.pricePaid})`, 'success');
     }
 
     // Reset Form
@@ -423,35 +498,51 @@ export default function AdminDashboardPage() {
     setIsGrantModalOpen(false);
   };
 
-  const handleExtendSubscription = (coachId: string) => {
+  const handleExtendSubscription = async (coachId: string) => {
     let coachName = '';
     let plan = '';
-    const updated = coaches.map((c) => {
-      if (c.id === coachId) {
-        coachName = c.name;
-        plan = c.planType;
-        const currentExpiry = new Date(c.expiryDate);
-        const newExpiry = new Date(c.expiryDate);
-        if (c.planType === 'Monthly') {
-          newExpiry.setMonth(currentExpiry.getMonth() + 1);
-        } else {
-          newExpiry.setFullYear(currentExpiry.getFullYear() + 1);
-        }
+    const coach = coaches.find(c => c.id === coachId);
+    if (!coach) return;
 
-        toast.success(`Subscription extended for ${c.name}`);
-        return {
-          ...c,
-          status: 'Active' as const,
-          expiryDate: newExpiry.toISOString().split('T')[0]
-        };
-      }
-      return c;
-    });
+    coachName = coach.name;
+    plan = coach.planType;
+    const currentExpiry = new Date(coach.expiryDate);
+    const newExpiry = new Date(coach.expiryDate);
+    if (coach.planType === 'Monthly') {
+      newExpiry.setMonth(currentExpiry.getMonth() + 1);
+    } else {
+      newExpiry.setFullYear(currentExpiry.getFullYear() + 1);
+    }
 
-    setCoaches(updated);
-    localStorage.setItem('platformCoaches', JSON.stringify(updated));
-    if (coachName) {
+    try {
+      await api.put(`/admin/coaches/${coachId}`, {
+        expiryDate: newExpiry.toISOString().split('T')[0],
+        status: 'Active'
+      });
+      toast.success(`Subscription extended for ${coachName}`);
       addAuditLog(`Extended subscription license for Coach ${coachName} by 1 ${plan === 'Monthly' ? 'month' : 'year'}`, 'success');
+
+      const coachesRes = await api.get('/admin/coaches');
+      setCoaches(coachesRes.data);
+    } catch (err) {
+      console.error('Failed to extend subscription in backend, using local fallback', err);
+      const updated = coaches.map((c) => {
+        if (c.id === coachId) {
+          toast.success(`Subscription extended for ${c.name}`);
+          return {
+            ...c,
+            status: 'Active' as const,
+            expiryDate: newExpiry.toISOString().split('T')[0]
+          };
+        }
+        return c;
+      });
+
+      setCoaches(updated);
+      localStorage.setItem('platformCoaches', JSON.stringify(updated));
+      if (coachName) {
+        addAuditLog(`Extended subscription license for Coach ${coachName} by 1 ${plan === 'Monthly' ? 'month' : 'year'}`, 'success');
+      }
     }
   };
 

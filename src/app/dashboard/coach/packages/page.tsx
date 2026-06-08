@@ -15,6 +15,7 @@ import {
   Layers
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 export interface SubscriptionPackage {
   id: string;
@@ -49,24 +50,46 @@ export default function PackageBuilderPage() {
   const [customStartDate, setCustomStartDate] = useState('2026-06-07');
   const [clientsList, setClientsList] = useState<any[]>([]);
 
-  // Load packages from localStorage or set defaults
-  useEffect(() => {
-    const saved = localStorage.getItem('subscriptionPackages');
-    if (saved) {
-      try {
-        // Strip image property from stored packages if present
-        const parsed: SubscriptionPackage[] = JSON.parse(saved).map(({ image, ...rest }: any) => rest);
-        setPackages(parsed);
-      } catch (e) {
-        setPackages(defaultPackages);
+  const fetchPackages = async () => {
+    try {
+      const res = await api.get('/coach/packages');
+      const parsed = res.data.map((item: any) => {
+        if (item.description) {
+          try {
+            return { id: item.id, ...JSON.parse(item.description) };
+          } catch (e) {}
+        }
+        return {
+          id: item.id,
+          name: item.name,
+          durationType: 'Monthly',
+          durationValue: item.durationMonths,
+          price: item.price,
+          maxDevices: 3,
+          isTrial: false
+        };
+      });
+      setPackages(parsed);
+    } catch (err) {
+      console.error('Failed to load packages from backend, falling back to local storage', err);
+      const saved = localStorage.getItem('subscriptionPackages');
+      if (saved) {
+        try {
+          const parsed: SubscriptionPackage[] = JSON.parse(saved).map(({ image, ...rest }: any) => rest);
+          setPackages(parsed);
+        } catch (e) {
+          setPackages([]);
+        }
       }
-    } else {
-      setPackages(defaultPackages);
-      localStorage.setItem('subscriptionPackages', JSON.stringify(defaultPackages));
     }
+  };
+
+  // Load packages from localStorage or API
+  useEffect(() => {
+    fetchPackages();
   }, []);
 
-  const handleCreatePackage = (e: React.FormEvent) => {
+  const handleCreatePackage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
@@ -85,9 +108,23 @@ export default function PackageBuilderPage() {
       trialDuration: isTrial ? Number(trialDuration) : undefined
     };
 
-    const updated = [...packages, newPkg];
-    setPackages(updated);
-    localStorage.setItem('subscriptionPackages', JSON.stringify(updated));
+    try {
+      const payload = {
+        name: newPkg.name,
+        durationMonths: newPkg.durationType === 'Monthly' ? newPkg.durationValue : 1,
+        price: newPkg.price,
+        description: JSON.stringify(newPkg)
+      };
+      await api.post('/coach/packages', payload);
+      toast.success('Subscription package created successfully!');
+      fetchPackages();
+    } catch (err) {
+      console.error('Failed to create package in backend, using local storage fallback', err);
+      const updated = [...packages, newPkg];
+      setPackages(updated);
+      localStorage.setItem('subscriptionPackages', JSON.stringify(updated));
+      toast.success('Subscription package created locally (fallback)!');
+    }
 
     // Reset Form
     setName('');
@@ -95,14 +132,18 @@ export default function PackageBuilderPage() {
     setPrice(49);
     setMaxDevices(3);
     setIsTrial(false);
-    
-    toast.success('Subscription package created successfully!');
   };
 
-  const loadClients = () => {
-    const saved = localStorage.getItem('coachClients');
-    const list = saved ? JSON.parse(saved) : [];
-    setClientsList(list);
+  const loadClients = async () => {
+    try {
+      const clientsRes = await api.get('/coach/clients');
+      setClientsList(clientsRes.data);
+    } catch (err) {
+      console.error('Failed to load clients in packages page', err);
+      const saved = localStorage.getItem('coachClients');
+      const list = saved ? JSON.parse(saved) : [];
+      setClientsList(list);
+    }
   };
 
   const handleOpenAssignModal = (pkg: SubscriptionPackage) => {

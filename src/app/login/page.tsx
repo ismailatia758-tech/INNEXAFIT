@@ -35,34 +35,37 @@ export default function LoginPage() {
     try {
       let user, accessToken, refreshToken;
 
-      // 1. Check default mock users
-      if (data.email === 'coach@innexafit.com' && data.password === '123456') {
-        user = { id: 'mock-coach-id', email: 'coach@innexafit.com', role: 'COACH', name: 'Coach Innexa' };
-        accessToken = 'mock-access-token';
-        refreshToken = 'mock-refresh-token';
-      } else if (data.email === 'client@innexafit.com' && data.password === '123456') {
-        user = { id: 'mock-client-id', email: 'client@innexafit.com', role: 'CLIENT', name: 'John Doe' };
-        accessToken = 'mock-access-token';
-        refreshToken = 'mock-refresh-token';
-      } else if (data.email === 'admin@innexafit.com' && data.password === '123456') {
-        user = { id: 'mock-admin-id', email: 'admin@innexafit.com', role: 'ADMIN', name: 'Platform Owner' };
-        accessToken = 'mock-access-token';
-        refreshToken = 'mock-refresh-token';
-      } else {
-        // 2. Check localStorage mock users
-        const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-        const foundMock = mockUsers.find((u: any) => u.email === data.email && u.password === data.password);
-        
-        if (foundMock) {
-          user = foundMock.user;
-          accessToken = foundMock.accessToken;
-          refreshToken = foundMock.refreshToken;
+      try {
+        // Try the real API first
+        const response = await api.post('/auth/login', data);
+        user = response.data.user;
+        accessToken = response.data.accessToken;
+        refreshToken = response.data.refreshToken;
+      } catch (err) {
+        // Fallback to local mockup login if API is down / credentials not found in db
+        if (data.email === 'coach@innexafit.com' && data.password === '123456') {
+          user = { id: 'mock-coach-id', email: 'coach@innexafit.com', role: 'COACH', name: 'Coach Innexa' };
+          accessToken = 'mock-access-token';
+          refreshToken = 'mock-refresh-token';
+        } else if (data.email === 'client@innexafit.com' && data.password === '123456') {
+          user = { id: 'mock-client-id', email: 'client@innexafit.com', role: 'CLIENT', name: 'John Doe' };
+          accessToken = 'mock-access-token';
+          refreshToken = 'mock-refresh-token';
+        } else if (data.email === 'admin@innexafit.com' && data.password === '123456') {
+          user = { id: 'mock-admin-id', email: 'admin@innexafit.com', role: 'ADMIN', name: 'Platform Owner' };
+          accessToken = 'mock-access-token';
+          refreshToken = 'mock-refresh-token';
         } else {
-          // 3. Fallback to real API
-          const response = await api.post('/auth/login', data);
-          user = response.data.user;
-          accessToken = response.data.accessToken;
-          refreshToken = response.data.refreshToken;
+          const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+          const foundMock = mockUsers.find((u: any) => u.email === data.email && u.password === data.password);
+          
+          if (foundMock) {
+            user = foundMock.user;
+            accessToken = foundMock.accessToken;
+            refreshToken = foundMock.refreshToken;
+          } else {
+            throw err; // Re-throw original API error
+          }
         }
       }
 
