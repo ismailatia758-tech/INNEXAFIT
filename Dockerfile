@@ -18,7 +18,7 @@ COPY . .
 
 # Build the Next.js frontend application (optimized for 512MB memory limit)
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN NODE_OPTIONS="--max-old-space-size=450" npm run build
+RUN NEXT_DISABLE_TURBOPACK=1 NODE_OPTIONS="--max-old-space-size=450" npm run build
 
 # Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
