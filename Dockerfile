@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install nginx and create the required run directory for pid files
 RUN apk add --no-cache nginx && mkdir -p /run/nginx
