@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "INNEXA FIT — The Ultimate SaaS Fitness Platform",
   description: "High-performance, professional-grade SaaS platform designed for elite fitness coaches to manage their clients, automate their workflows, and scale their business using AI.",
+  icons: {
+    icon: '/logo.png'
+  }
 };
 
 export default function RootLayout({

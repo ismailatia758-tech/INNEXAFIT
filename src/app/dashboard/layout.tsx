@@ -11,7 +11,7 @@ import { useLanguage } from '@/store/useLanguage';
 import api from '@/lib/api';
 
 // ─── Subscription Gate for Expired Coaches ───────────────────────────────────
-function CoachSubscriptionExpiredGate({ user, onLogout }: { user: any; onLogout: () => void }) {
+function CoachSubscriptionExpiredGate({ user, onLogout, status }: { user: any; onLogout: () => void; status?: string }) {
   const { language } = useLanguage();
   const isEn = language === 'en';
   
@@ -76,7 +76,7 @@ function CoachSubscriptionExpiredGate({ user, onLogout }: { user: any; onLogout:
 
     try {
       // 1. Upload screenshot
-      const uploadRes = await api.post('/api/upload', formData, {
+      const uploadRes = await api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const fileUrl = uploadRes.data.fileUrl;
@@ -174,7 +174,7 @@ function CoachSubscriptionExpiredGate({ user, onLogout }: { user: any; onLogout:
 
             <div className="space-y-2">
               <h1 className="text-2xl font-black text-white">
-                {isEn ? 'Subscription Expired' : 'انتهت صلاحية الاشتراك'}
+                {status === 'Pending' ? (isEn ? 'Activate Subscription' : 'تفعيل الاشتراك') : (isEn ? 'Subscription Expired' : 'انتهت صلاحية الاشتراك')}
               </h1>
               <p className="text-muted-foreground text-xs leading-relaxed max-w-sm mx-auto">
                 {isEn 
@@ -195,7 +195,7 @@ function CoachSubscriptionExpiredGate({ user, onLogout }: { user: any; onLogout:
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-white">
-                    {isEn ? 'Renew My Subscription' : 'تجديد اشتراكي'}
+                    {status === 'Pending' ? (isEn ? 'Activate My Subscription' : 'تفعيل اشتراكي') : (isEn ? 'Renew My Subscription' : 'تجديد اشتراكي')}
                   </p>
                   <p className="text-[10px] text-muted-foreground text-left">
                     {isEn ? 'Select a plan and process your payment' : 'اختر الخطة المناسبة وقم بعملية الدفع'}
@@ -978,7 +978,7 @@ export default function DashboardLayout({
     subscriptionStatus !== null &&
     (subscriptionStatus === 'Expired' || subscriptionStatus === 'Pending')
   ) {
-    return <CoachSubscriptionExpiredGate user={user} onLogout={logout} />;
+    return <CoachSubscriptionExpiredGate user={user} onLogout={logout} status={subscriptionStatus} />;
   }
 
   // ── Client subscription gate ──

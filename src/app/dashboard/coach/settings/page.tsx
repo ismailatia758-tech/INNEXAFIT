@@ -231,7 +231,7 @@ export default function SettingsPage() {
 
     try {
       // 1. Upload receipt image
-      const uploadRes = await api.post('/api/upload', formData, {
+      const uploadRes = await api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const fileUrl = uploadRes.data.fileUrl;
