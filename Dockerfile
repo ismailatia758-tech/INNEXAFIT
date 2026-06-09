@@ -16,9 +16,9 @@ RUN cd backend && npm install --omit=dev
 # Copy all source files
 COPY . .
 
-# Build the Next.js frontend application
+# Build the Next.js frontend application (optimized for 512MB memory limit)
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=450" npm run build
 
 # Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
