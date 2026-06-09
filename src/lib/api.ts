@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+const isServer = typeof window === 'undefined';
+const defaultBaseURL = isServer 
+  ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api')
+  : (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.host}/api`);
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api',
+  baseURL: defaultBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,7 +28,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/refresh`, {
+        const response = await axios.post(`${defaultBaseURL}/auth/refresh`, {
           refreshToken,
         });
         const { accessToken } = response.data;

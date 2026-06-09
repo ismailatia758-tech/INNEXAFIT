@@ -25,7 +25,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (accessToken && user) {
-      const socketInstance = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', {
+      const socketUrl = process.env.NEXT_PUBLIC_API_URL || 
+        (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : 'http://localhost:4000');
+      const socketInstance = io(socketUrl, {
         auth: { token: accessToken },
       });
 

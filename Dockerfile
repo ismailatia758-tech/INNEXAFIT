@@ -1,5 +1,8 @@
 FROM node:18-alpine
 
+# Install nginx and create the required run directory for pid files
+RUN apk add --no-cache nginx && mkdir -p /run/nginx
+
 WORKDIR /usr/src/app
 
 # Install root dependencies (Next.js frontend)
@@ -17,8 +20,14 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Expose Next.js port (3000) and Express backend port (4000)
-EXPOSE 3000 4000
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Start both services: Backend in background, Frontend in foreground
-CMD ["sh", "-c", "node backend/server.js & npm run start"]
+# Expose port 8080 (the unified entrypoint for Starlight Hyperlift)
+EXPOSE 8080
+
+# Start all three services:
+# 1. Express backend on port 4000
+# 2. Next.js frontend on port 3000
+# 3. Nginx proxy on port 8080 (in the foreground to keep container alive)
+CMD ["sh", "-c", "node backend/server.js & npm run start & nginx -g 'daemon off;'"]
